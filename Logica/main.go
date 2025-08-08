@@ -2,6 +2,7 @@ package main
 
 import (
 	"Logica/core"
+	"fmt"
 	"log"
 )
 
@@ -10,4 +11,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	err = core.Fdisk(1024, "K", "WF", "./Disco1.mia", "P", "Part1")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Prueba completada.")
 }

@@ -56,7 +56,7 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 
 	mbr := models.MBR{
 		MbrSize:         finalSize,
-		MbrCreationDate: time.Now(),
+		MbrCreationDate: time.Now().Unix(),
 		MbrSignature:    rand.Int63(),
 		DiskFit:         fit[0],
 	}
