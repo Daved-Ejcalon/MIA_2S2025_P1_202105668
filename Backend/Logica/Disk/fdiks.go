@@ -1,6 +1,7 @@
 package Disk
 
 import (
+	"MIA_2S2025_P1_202105668/Logica/Partition"
 	"MIA_2S2025_P1_202105668/Models"
 	"encoding/binary"
 	"errors"
@@ -9,7 +10,7 @@ import (
 	"strings"
 )
 
-// Fdisk crea una partición en el disco especificado
+// Fdisk, para crear una partición en el disco especificado
 func Fdisk(size int64, unit string, fit string, path string, ptype string, name string) error {
 	// Normalizar parámetros
 	unit = strings.ToUpper(unit)
@@ -18,20 +19,19 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 
 	// Validaciones básicas con mensajes específicos
 	if size <= 0 {
-		return fmt.Errorf("error: el tamaño de la partición debe ser mayor a 0, se proporcionó: %d", size)
+		return fmt.Errorf("tamaño inválido")
 	}
 	if name == "" {
-		return errors.New("error: el nombre de la partición es obligatorio y no puede estar vacío")
+		return errors.New("nombre requerido")
 	}
 	if strings.TrimSpace(name) == "" {
-		return errors.New("error: el nombre de la partición no puede contener solo espacios en blanco")
+		return errors.New("nombre inválido")
 	}
 
-	// Convertir unidades (default K) con mensajes específicos
+	// Convertir unidades (Por default K)
 	if unit == "" {
 		unit = "K"
 	}
-	originalSize := size
 	switch unit {
 	case "B":
 		// No cambiar
@@ -40,10 +40,10 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 	case "M":
 		size *= 1024 * 1024
 	default:
-		return fmt.Errorf("error: unidad '%s' no válida. Las unidades permitidas son: B (bytes), K (kilobytes), M (megabytes)", unit)
+		return fmt.Errorf("unidad inválida")
 	}
 
-	// Validar fit (default WF) con mensaje específico
+	// Validar fit (Por default WF)
 	if fit == "" {
 		fit = "WF"
 	}
@@ -51,29 +51,29 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 	case "BF", "FF", "WF":
 		// Válido
 	default:
-		return fmt.Errorf("error: tipo de ajuste '%s' no válido. Los ajustes permitidos son: BF (Best Fit), FF (First Fit), WF (Worst Fit)", fit)
+		return fmt.Errorf("fit inválido")
 	}
 
-	// Validar tipo (default P) con mensaje específico
+	// Validar tipo (default P)
 	if ptype == "" {
 		ptype = "P"
 	}
 	switch ptype {
 	case "P", "E", "L":
-		// Válido
+	// Válido
 	default:
-		return fmt.Errorf("error: tipo de partición '%s' no válido. Los tipos permitidos son: P (primaria), E (extendida), L (lógica)", ptype)
+		return fmt.Errorf("tipo inválido")
 	}
 
 	// Verificar que el archivo existe antes de intentar abrirlo
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Errorf("error: el archivo de disco '%s' no existe. Verifique la ruta o cree el disco primero con mkdisk", path)
+		return fmt.Errorf("archivo no existe")
 	}
 
 	// Abrir archivo del disco
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("error: no se pudo abrir el archivo de disco '%s': %v", path, err)
+		return fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
@@ -82,13 +82,13 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 	file.Seek(0, 0)
 	err = binary.Read(file, binary.LittleEndian, &mbr)
 	if err != nil {
-		return fmt.Errorf("error: no se pudo leer el MBR del disco '%s'. El archivo puede estar corrupto: %v", path, err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Verificar nombre único con mensaje específico
 	for _, partition := range mbr.Partitions {
 		if partition.PartStatus != 0 && partition.GetName() == name {
-			return fmt.Errorf("error: ya existe una partición con el nombre '%s' en el disco '%s'. Los nombres de partición deben ser únicos", name, path)
+			return fmt.Errorf("nombre duplicado")
 		}
 	}
 
@@ -110,19 +110,19 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 
 	// Validaciones específicas según tipo de partición
 	if ptype == "P" && primaryCount >= 4 {
-		return fmt.Errorf("error: no se puede crear la partición primaria '%s'. Ya existen 4 particiones primarias (máximo permitido)", name)
+		return fmt.Errorf("demasiadas particiones primarias")
 	}
 
 	if ptype == "P" && primaryCount >= 3 && extendedCount == 1 {
-		return fmt.Errorf("error: no se puede crear la partición primaria '%s'. Ya existen 3 particiones primarias y 1 extendida (máximo: 3P + 1E)", name)
+		return fmt.Errorf("límite de particiones alcanzado")
 	}
 
 	if ptype == "E" && extendedCount >= 1 {
-		return fmt.Errorf("error: no se puede crear la partición extendida '%s'. Ya existe una partición extendida en el disco (solo se permite una por disco)", name)
+		return fmt.Errorf("partición extendida existente")
 	}
 
 	if ptype == "L" && extendedCount == 0 {
-		return fmt.Errorf("error: no se puede crear la partición lógica '%s'. No existe una partición extendida en el disco (las particiones lógicas requieren una partición extendida)", name)
+		return fmt.Errorf("partición extendida requerida")
 	}
 
 	// Buscar slot libre en el arreglo del MBR
@@ -134,7 +134,7 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 		}
 	}
 	if slotIndex == -1 {
-		return fmt.Errorf("error: no se puede crear la partición '%s'. No hay espacios disponibles en la tabla de particiones del disco", name)
+		return fmt.Errorf("sin espacios disponibles")
 	}
 
 	// Calcular posición de inicio
@@ -142,25 +142,24 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 
 	// Lógica específica para particiones lógicas
 	if ptype == "L" {
-		startPosition = extended.PartStart
+		// Para particiones lógicas, usar EBR_Manager
+		ebrMgr := Partition.NewEBRManager(path, extended)
 
-		// Encontrar espacio después de todas las lógicas existentes
-		for _, p := range mbr.Partitions {
-			if p.PartStatus != 0 && p.PartType == 'L' {
-				end := p.PartStart + p.PartSize
-				if end > startPosition {
-					startPosition = end
-				}
-			}
+		// Convertir tamaño a bytes
+		sizeInBytes := size
+		if unit == "K" {
+			sizeInBytes *= 1024
+		} else if unit == "M" {
+			sizeInBytes *= 1024 * 1024
 		}
 
-		// Verificar que cabe dentro de la extendida
-		extEnd := extended.PartStart + extended.PartSize
-		if startPosition+size > extEnd {
-			availableSpace := extEnd - startPosition
-			return fmt.Errorf("error: no se puede crear la partición lógica '%s' de %d %s (%d bytes). Espacio disponible en la partición extendida: %d bytes",
-				name, originalSize, unit, size, availableSpace)
+		// Crear partición lógica usando EBR_Manager
+		if err := ebrMgr.AddLogicalPartition(name, sizeInBytes, fitToByte(fit)); err != nil {
+			return fmt.Errorf("error creando partición lógica")
 		}
+
+		fmt.Printf("Partición lógica '%s' creada\n", name)
+		return nil
 	} else {
 		// Para particiones primarias y extendidas
 		for _, partition := range mbr.Partitions {
@@ -174,9 +173,7 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 
 		// Verificar espacio en el disco
 		if startPosition+size > mbr.MbrSize {
-			availableSpace := mbr.MbrSize - startPosition
-			return fmt.Errorf("error: no se puede crear la partición '%s' de %d %s (%d bytes). Espacio disponible en el disco: %d bytes",
-				name, originalSize, unit, size, availableSpace)
+			return fmt.Errorf("espacio insuficiente")
 		}
 	}
 
@@ -184,7 +181,7 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 	newPartition := Models.Partition{
 		PartStatus:      1,
 		PartType:        ptype[0],
-		PartFit:         fit[0],
+		PartFit:         fitToByte(fit),
 		PartStart:       startPosition,
 		PartSize:        size,
 		PartCorrelative: -1,
@@ -197,30 +194,22 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 	// Escribir MBR actualizado
 	file.Seek(0, 0)
 	if err := binary.Write(file, binary.LittleEndian, &mbr); err != nil {
-		return fmt.Errorf("error: no se pudo actualizar el MBR del disco '%s': %v", path, err)
+		return fmt.Errorf("error actualizando MBR")
 	}
 
-	// Mensaje de éxito detallado
-	fmt.Printf("✓ Partición '%s' creada exitosamente\n", name)
-	fmt.Printf("  Tipo: %s", ptype)
-	if ptype == "P" {
-		fmt.Printf(" (Primaria)")
-	} else if ptype == "E" {
-		fmt.Printf(" (Extendida)")
-	} else if ptype == "L" {
-		fmt.Printf(" (Lógica)")
-	}
-	fmt.Printf("\n  Tamaño: %d %s (%d bytes)\n", originalSize, unit, size)
-	fmt.Printf("  Ajuste: %s", fit)
-	if fit == "BF" {
-		fmt.Printf(" (Best Fit)")
-	} else if fit == "FF" {
-		fmt.Printf(" (First Fit)")
-	} else if fit == "WF" {
-		fmt.Printf(" (Worst Fit)")
-	}
-	fmt.Printf("\n  Posición: %d\n", startPosition)
-	fmt.Printf("  Disco: %s\n", path)
+	fmt.Printf("Partición '%s' creada\n", name)
 
 	return nil
+}
+
+// fitToByte convierte string de fit a byte
+func fitToByte(fit string) byte {
+	s := strings.ToUpper(fit)
+	if s == "BF" || s == "B" {
+		return Models.FIT_BEST
+	}
+	if s == "FF" || s == "F" {
+		return Models.FIT_FIRST
+	}
+	return Models.FIT_WORST
 }

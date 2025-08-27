@@ -1,19 +1,20 @@
 package Disk
 
 import (
+	"MIA_2S2025_P1_202105668/Logica/Partition"
 	"MIA_2S2025_P1_202105668/Models"
 	"encoding/binary"
 	"fmt"
 	"os"
 )
 
-// MountInfo representa información de una partición montada
+// MountInfo muestra la información de una partición montada
 type MountInfo struct {
-	DiskPath      string // Ruta del disco
+	DiskPath      string // Ruta
 	PartitionName string // Nombre de la partición
-	MountID       string // ID asignado (ej: "681A")
-	DiskLetter    rune   // Letra asignada al disco ('A', 'B', 'C'...)
-	PartNumber    int    // Número de partición montada en ese disco
+	MountID       string // ID ("681A")
+	DiskLetter    rune   // Letra
+	PartNumber    int    // Número de partición
 }
 
 // Variables globales para manejo de montajes en RAM
@@ -40,26 +41,26 @@ func Mount(path string, name string) error {
 
 	// Validaciones básicas
 	if path == "" {
-		return fmt.Errorf("error: la ruta del disco es obligatoria")
+		return fmt.Errorf("path requerido")
 	}
 	if name == "" {
-		return fmt.Errorf("error: el nombre de la partición es obligatorio")
+		return fmt.Errorf("nombre requerido")
 	}
 
 	// Verificar que el archivo existe
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Errorf("error: el archivo de disco '%s' no existe", path)
+		return fmt.Errorf("archivo no existe")
 	}
 
 	// Verificar si ya está montada
 	if isAlreadyMounted(path, name) {
-		return fmt.Errorf("error: la partición '%s' del disco '%s' ya está montada", name, path)
+		return fmt.Errorf("partición ya montada")
 	}
 
 	// Abrir archivo del disco
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("error: no se pudo abrir el disco '%s': %v", path, err)
+		return fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
@@ -68,28 +69,26 @@ func Mount(path string, name string) error {
 	file.Seek(0, 0)
 	err = binary.Read(file, binary.LittleEndian, &mbr)
 	if err != nil {
-		return fmt.Errorf("error: no se pudo leer el MBR del disco '%s': %v", path, err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Buscar partición por nombre
 	var targetPartition *Models.Partition
-	var partitionIndex int = -1
 
 	for i, partition := range mbr.Partitions {
 		if partition.PartStatus != 0 && partition.GetName() == name {
 			targetPartition = &mbr.Partitions[i]
-			partitionIndex = i
 			break
 		}
 	}
 
 	if targetPartition == nil {
-		return fmt.Errorf("error: no existe la partición '%s' en el disco '%s'", name, path)
+		return fmt.Errorf("partición no encontrada")
 	}
 
-	// Validar que es partición primaria
+	// Validar que es partición primaria únicamente
 	if targetPartition.PartType != 'P' {
-		return fmt.Errorf("error: solo se pueden montar particiones primarias. La partición '%s' es de tipo '%c'", name, targetPartition.PartType)
+		return fmt.Errorf("solo se pueden montar particiones primarias")
 	}
 
 	// Determinar letra del disco
@@ -109,21 +108,15 @@ func Mount(path string, name string) error {
 	diskPartitionCount[path]++
 	partitionNumber := diskPartitionCount[path]
 
-	// Generar ID: 68 (carnet) + número + letra
+	// Generar ID: 68 (últimos dos dígitos del carnet 202105668) + número + letra
 	mountID := fmt.Sprintf("68%d%c", partitionNumber, diskLetter)
 
-	// Actualizar partición en el disco
-	mbr.Partitions[partitionIndex].PartStatus = 1 // Marcar como montada
-	mbr.Partitions[partitionIndex].PartCorrelative = int64(partitionNumber)
-
-	// Almacenar ID generado en el campo PartID
-	copy(mbr.Partitions[partitionIndex].PartID[:], mountID)
-
-	// Escribir MBR actualizado
-	file.Seek(0, 0)
-	if err := binary.Write(file, binary.LittleEndian, &mbr); err != nil {
-		return fmt.Errorf("error: no se pudo actualizar el MBR del disco '%s': %v", path, err)
-	}
+	// Actualizar atributos de la partición EN MEMORIA (no escribir al disco)
+	targetPartition.PartStatus = 1 // Marcar como montada
+	targetPartition.PartCorrelative = int64(partitionNumber)
+	
+	// Almacenar ID generado en el campo PartID (solo en memoria)
+	copy(targetPartition.PartID[:], mountID)
 
 	// Agregar a tabla de montajes en RAM
 	mountInfo := MountInfo{
@@ -135,12 +128,7 @@ func Mount(path string, name string) error {
 	}
 	mountedPartitions = append(mountedPartitions, mountInfo)
 
-	// Mensaje de éxito
-	fmt.Printf("✓ Partición montada exitosamente\n")
-	fmt.Printf("  ID: %s\n", mountID)
-	fmt.Printf("  Partición: %s\n", name)
-	fmt.Printf("  Disco: %s (Letra: %c)\n", path, diskLetter)
-	fmt.Printf("  Número de partición en disco: %d\n", partitionNumber)
+	fmt.Printf("Partición montada: %s\n", mountID)
 
 	return nil
 }
@@ -178,12 +166,12 @@ func UnmountPartition(mountID string) error {
 				delete(diskPartitionCount, mount.DiskPath)
 			}
 
-			fmt.Printf("✓ Partición %s desmontada exitosamente\n", mountID)
+			fmt.Printf("Partición desmontada: %s\n", mountID)
 			return nil
 		}
 	}
 
-	return fmt.Errorf("error: no existe partición montada con ID '%s'", mountID)
+	return fmt.Errorf("ID no encontrado")
 }
 
 // ShowMountedPartitions muestra todas las particiones montadas
@@ -200,4 +188,58 @@ func ShowMountedPartitions() {
 		fmt.Printf("ID: %s | Partición: %s | Disco: %s | Letra: %c | Número: %d\n",
 			mount.MountID, mount.PartitionName, mount.DiskPath, mount.DiskLetter, mount.PartNumber)
 	}
+}
+
+// mountLogicalPartition monta una partición lógica buscándola en la cadena de EBRs
+func mountLogicalPartition(path string, name string, logicalPartition *Models.Partition) error {
+	// Buscar la partición lógica en la cadena de EBRs
+	ebrMgr := Partition.NewEBRManager(path, logicalPartition)
+
+	// Verificar que la partición lógica existe
+	exists, err := ebrMgr.LogicalPartitionExists(name)
+	if err != nil {
+		return fmt.Errorf("error verificando partición")
+	}
+	if !exists {
+		return fmt.Errorf("partición lógica no encontrada")
+	}
+
+	// Determinar letra del disco
+	var diskLetter rune
+	if letter, exists := diskLetterMap[path]; exists {
+		// Disco ya tiene letra asignada
+		diskLetter = letter
+	} else {
+		// Nuevo disco, asignar siguiente letra disponible
+		diskLetter = nextAvailableLetter
+		diskLetterMap[path] = diskLetter
+		diskPartitionCount[path] = 0 // Inicializar contador
+		nextAvailableLetter++
+	}
+
+	// Incrementar contador de particiones para este disco
+	diskPartitionCount[path]++
+	partitionNumber := diskPartitionCount[path]
+
+	// Generar ID: 68 (carnet) + número + letra
+	mountID := fmt.Sprintf("68%d%c", partitionNumber, diskLetter)
+
+	// Actualizar partición en el disco (estado de montaje)
+	logicalPartition.PartStatus = 1 // Marcar como montada
+	logicalPartition.PartCorrelative = int64(partitionNumber)
+	logicalPartition.SetPartitionID(mountID)
+
+	// Agregar a tabla de montajes en RAM
+	mountInfo := MountInfo{
+		DiskPath:      path,
+		PartitionName: name,
+		MountID:       mountID,
+		DiskLetter:    diskLetter,
+		PartNumber:    partitionNumber,
+	}
+	mountedPartitions = append(mountedPartitions, mountInfo)
+
+	fmt.Printf("Partición lógica montada: %s\n", mountID)
+
+	return nil
 }

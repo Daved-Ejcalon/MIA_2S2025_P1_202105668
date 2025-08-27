@@ -28,12 +28,12 @@ func NewMBRManager(diskPath string) *MBRManager {
 func (m *MBRManager) CreateMBR(diskSize int64, fitType byte) (*Models.MBR, error) {
 	// Validar tipo de ajuste
 	if !Models.IsValidFitType(fitType) {
-		return nil, fmt.Errorf("tipo de ajuste inválido: %c. Use B, F o W", fitType)
+		return nil, fmt.Errorf("fit inválido")
 	}
 
 	// Validar tamaño del disco
 	if diskSize <= Models.MBR_SIZE {
-		return nil, fmt.Errorf("el tamaño del disco debe ser mayor a %d bytes", Models.MBR_SIZE)
+		return nil, fmt.Errorf("tamaño inválido")
 	}
 
 	// Crear nuevo MBR
@@ -72,27 +72,27 @@ func (m *MBRManager) WriteMBR(mbr *Models.MBR) error {
 	// Abrir archivo en modo lectura/escritura
 	file, err := os.OpenFile(m.diskPath, os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("error al abrir el disco: %v", err)
+		return fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
 	// Posicionarse al inicio del archivo (offset 0)
 	_, err = file.Seek(0, 0)
 	if err != nil {
-		return fmt.Errorf("error al posicionarse en el inicio del disco: %v", err)
+		return fmt.Errorf("error posicionándose")
 	}
 
 	// Serializar el MBR a bytes
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, mbr)
 	if err != nil {
-		return fmt.Errorf("error al serializar el MBR: %v", err)
+		return fmt.Errorf("error serializando MBR")
 	}
 
 	// Escribir al archivo
 	_, err = file.Write(buffer.Bytes())
 	if err != nil {
-		return fmt.Errorf("error al escribir el MBR al disco: %v", err)
+		return fmt.Errorf("error escribiendo MBR")
 	}
 
 	return nil
@@ -108,21 +108,21 @@ func (m *MBRManager) ReadMBR() (*Models.MBR, error) {
 	// Abrir archivo en modo lectura
 	file, err := os.Open(m.diskPath)
 	if err != nil {
-		return nil, fmt.Errorf("error al abrir el disco: %v", err)
+		return nil, fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
 	// Posicionarse al inicio del archivo
 	_, err = file.Seek(0, 0)
 	if err != nil {
-		return nil, fmt.Errorf("error al posicionarse en el inicio del disco: %v", err)
+		return nil, fmt.Errorf("error posicionándose")
 	}
 
 	// Leer bytes del MBR
 	mbrBytes := make([]byte, Models.MBR_SIZE)
 	_, err = file.Read(mbrBytes)
 	if err != nil {
-		return nil, fmt.Errorf("error al leer el MBR del disco: %v", err)
+		return nil, fmt.Errorf("error leyendo MBR")
 	}
 
 	// Deserializar bytes a estructura MBR
@@ -130,7 +130,7 @@ func (m *MBRManager) ReadMBR() (*Models.MBR, error) {
 	buffer := bytes.NewReader(mbrBytes)
 	err = binary.Read(buffer, binary.LittleEndian, mbr)
 	if err != nil {
-		return nil, fmt.Errorf("error al deserializar el MBR: %v", err)
+		return nil, fmt.Errorf("error deserializando MBR")
 	}
 
 	return mbr, nil
@@ -141,7 +141,7 @@ func (m *MBRManager) AddPartition(name string, size int64, partType byte, fitTyp
 	// Leer MBR actual
 	mbr, err := m.ReadMBR()
 	if err != nil {
-		return fmt.Errorf("error al leer MBR: %v", err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Validar parámetros
@@ -185,7 +185,7 @@ func (m *MBRManager) AddPartition(name string, size int64, partType byte, fitTyp
 	// Escribir MBR actualizado
 	err = m.WriteMBR(mbr)
 	if err != nil {
-		return fmt.Errorf("error al escribir MBR actualizado: %v", err)
+		return fmt.Errorf("error escribiendo MBR")
 	}
 
 	return nil
@@ -349,7 +349,7 @@ func (m *MBRManager) findWorstFit(occupied [][2]int64, size int64, diskSize int6
 func (m *MBRManager) RemovePartition(partitionName string) error {
 	mbr, err := m.ReadMBR()
 	if err != nil {
-		return fmt.Errorf("error al leer MBR: %v", err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Buscar la partición por nombre
@@ -375,7 +375,7 @@ func (m *MBRManager) RemovePartition(partitionName string) error {
 	// Escribir MBR actualizado
 	err = m.WriteMBR(mbr)
 	if err != nil {
-		return fmt.Errorf("error al escribir MBR actualizado: %v", err)
+		return fmt.Errorf("error escribiendo MBR")
 	}
 
 	return nil
@@ -385,7 +385,7 @@ func (m *MBRManager) RemovePartition(partitionName string) error {
 func (m *MBRManager) GetPartitions() ([]Models.Partition, error) {
 	mbr, err := m.ReadMBR()
 	if err != nil {
-		return nil, fmt.Errorf("error al leer MBR: %v", err)
+		return nil, fmt.Errorf("error leyendo MBR")
 	}
 
 	partitions := make([]Models.Partition, 0)
@@ -402,7 +402,7 @@ func (m *MBRManager) GetPartitions() ([]Models.Partition, error) {
 func (m *MBRManager) ValidateMBR() error {
 	mbr, err := m.ReadMBR()
 	if err != nil {
-		return fmt.Errorf("error al leer MBR: %v", err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Validar firma del disco

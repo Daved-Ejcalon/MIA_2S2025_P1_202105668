@@ -20,13 +20,9 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 
 	// Validaciones
 	if size <= 0 {
-		return errors.New("el tamaño debe ser mayor a 0")
+		return errors.New("tamaño inválido")
 	}
 
-	// Validar extensión .mia obligatoria
-	if !strings.HasSuffix(strings.ToLower(path), ".mia") {
-		return errors.New("el archivo debe tener extensión .mia")
-	}
 
 	// Validar unidad
 	if unit == "" {
@@ -38,9 +34,9 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 	case "M":
 		size *= 1024 * 1024
 	case "B":
-		// No cambiar - funcionalidad extra mantenida
+
 	default:
-		return errors.New("unidad inválida. Use K o M")
+		return errors.New("unidad inválida")
 	}
 
 	// Validar fit
@@ -49,25 +45,25 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 	}
 	switch fit {
 	case "BF", "FF", "WF":
-		// Válido
+	// Válido
 	default:
-		return errors.New("tipo de ajuste inválido. Use BF, FF o WF")
+		return errors.New("fit inválido")
 	}
 
 	// Crear directorios si no existen
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("error creando directorios: %w", err)
+		return fmt.Errorf("error creando directorios")
 	}
 
 	// Crear archivo
 	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("error creando archivo: %w", err)
+		return fmt.Errorf("error creando archivo")
 	}
 	defer file.Close()
 
-	// Llenar archivo con ceros usando buffer eficiente
+	// Llenar archivo con ceros usando buffer
 	buffer := make([]byte, 1024)
 	remaining := size
 
@@ -79,7 +75,7 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 
 		_, err := file.Write(buffer[:writeSize])
 		if err != nil {
-			return fmt.Errorf("error escribiendo al archivo: %w", err)
+			return fmt.Errorf("error escribiendo archivo")
 		}
 
 		remaining -= writeSize
@@ -102,11 +98,10 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 	file.Seek(0, 0)
 	err = binary.Write(file, binary.LittleEndian, &mbr)
 	if err != nil {
-		return fmt.Errorf("error escribiendo MBR: %w", err)
+		return fmt.Errorf("error escribiendo MBR")
 	}
 
-	fmt.Printf("Disco creado correctamente: %s\n", path)
-	fmt.Printf("Tamaño: %d bytes\n", size)
+	fmt.Printf("Disco creado: %s\n", path)
 
 	return nil
 }

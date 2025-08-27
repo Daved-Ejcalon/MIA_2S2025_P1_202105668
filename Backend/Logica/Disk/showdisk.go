@@ -13,13 +13,13 @@ import (
 func ShowDisk(path string) error {
 	// Verificar que el archivo existe
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Errorf("el archivo %s no existe", path)
+		return fmt.Errorf("archivo no existe")
 	}
 
 	// Abrir archivo del disco
 	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("no se pudo abrir el disco: %w", err)
+		return fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
@@ -27,7 +27,7 @@ func ShowDisk(path string) error {
 	var mbr Models.MBR
 	err = binary.Read(file, binary.LittleEndian, &mbr)
 	if err != nil {
-		return fmt.Errorf("error leyendo MBR: %w", err)
+		return fmt.Errorf("error leyendo MBR")
 	}
 
 	// Mostrar información del MBR
