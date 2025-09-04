@@ -4,23 +4,25 @@ import (
 	"unsafe"
 )
 
+// Partition representa una entrada de particion en la tabla MBR
 type Partition struct {
-	PartStatus      byte
-	PartType        byte
-	PartFit         byte
-	PartStart       int64
-	PartSize        int64
-	PartName        [16]byte
-	PartCorrelative int64
-	PartID          [4]byte
+	PartStatus      byte       // Estado de montaje (0=inactiva, 1=activa)
+	PartType        byte       // Tipo: P=primaria, E=extendida, L=logica
+	PartFit         byte       // Algoritmo: F=First, B=Best, W=Worst
+	PartStart       int64      // Posicion de inicio en bytes
+	PartSize        int64      // Tamano de la particion en bytes
+	PartName        [16]byte   // Nombre de la particion (max 15 caracteres)
+	PartCorrelative int64      // Numero correlativo para montaje
+	PartID          [4]byte    // ID de montaje asignado
 }
 
+// MBR contiene metadatos del disco y tabla de particiones
 type MBR struct {
-	MbrSize         int64
-	MbrCreationDate int64
-	MbrSignature    int64
-	DiskFit         byte
-	Partitions      [4]Partition
+	MbrSize         int64          // Tamano total del disco en bytes
+	MbrCreationDate int64          // Timestamp de creacion del disco
+	MbrSignature    int64          // Numero aleatorio de identificacion
+	DiskFit         byte           // Algoritmo de ajuste por defecto
+	Partitions      [4]Partition   // Tabla de particiones (max 4 entradas)
 }
 
 const (
@@ -69,6 +71,7 @@ func (p *Partition) GetName() string {
 }
 
 func (p *Partition) GetPartitionName() string {
+	// Extraer nombre eliminando bytes nulos
 	name := make([]byte, 0, 16)
 	for _, b := range p.PartName {
 		if b == 0 {
@@ -80,10 +83,12 @@ func (p *Partition) GetPartitionName() string {
 }
 
 func (p *Partition) SetPartitionName(name string) {
+	// Limpiar nombre anterior
 	for i := range p.PartName {
 		p.PartName[i] = 0
 	}
 
+	// Asignar nombre nuevo con limite de 15 caracteres
 	nameBytes := []byte(name)
 	maxLen := 15
 	if len(nameBytes) < maxLen {
@@ -135,12 +140,14 @@ func (p *Partition) IsMounted() bool {
 }
 
 func (p *Partition) Mount(partitionNumber int64, mountID string) {
+	// Marcar particion como activa y asignar ID de montaje
 	p.PartStatus = PARTITION_ACTIVE
 	p.PartCorrelative = partitionNumber
 	copy(p.PartID[:], mountID)
 }
 
 func (p *Partition) Unmount() {
+	// Desmontar particion y limpiar datos de montaje
 	p.PartStatus = PARTITION_INACTIVE
 	p.PartCorrelative = -1
 	for i := range p.PartID {

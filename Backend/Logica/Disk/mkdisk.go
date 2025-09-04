@@ -12,19 +12,17 @@ import (
 	"time"
 )
 
-// MkDisk crea un disco virtual con el tamaño especificado
+// MkDisk crea un disco virtual con MBR inicializado
 func MkDisk(size int64, unit string, fit string, path string) error {
-	// Normalizar parámetros
 	unit = strings.ToUpper(unit)
 	fit = strings.ToUpper(fit)
 
-	// Validaciones
+	// Validar tamaño del disco
 	if size <= 0 {
-		return errors.New("tamaño inválido")
+		return errors.New("tamano debe ser mayor a cero")
 	}
 
-
-	// Validar unidad
+	// Conversión de unidades a bytes (M por defecto)
 	if unit == "" {
 		unit = "M"
 	}
@@ -33,37 +31,32 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 		size *= 1024
 	case "M":
 		size *= 1024 * 1024
-	case "B":
-
 	default:
-		return errors.New("unidad inválida")
+		return errors.New("unidad debe ser K o M")
 	}
 
-	// Validar fit
 	if fit == "" {
 		fit = "FF"
 	}
 	switch fit {
 	case "BF", "FF", "WF":
-	// Válido
 	default:
-		return errors.New("fit inválido")
+		return errors.New("algoritmo de ajuste debe ser BF, FF o WF")
 	}
 
-	// Crear directorios si no existen
+	// Crear directorios padre si no existen
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("error creando directorios")
 	}
 
-	// Crear archivo
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("error creando archivo")
 	}
 	defer file.Close()
 
-	// Llenar archivo con ceros usando buffer
+	// Llenar archivo con ceros usando buffer de 1KB
 	buffer := make([]byte, 1024)
 	remaining := size
 
@@ -81,7 +74,7 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 		remaining -= writeSize
 	}
 
-	// Crear y escribir MBR
+	// Crear estructura MBR con metadatos del disco
 	mbr := Models.MBR{
 		MbrSize:         size,
 		MbrCreationDate: time.Now().Unix(),
@@ -89,7 +82,7 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 		DiskFit:         fit[0],
 	}
 
-	// Inicializar particiones vacías
+	// Inicializar tabla de particiones vacía
 	for i := range mbr.Partitions {
 		mbr.Partitions[i].PartCorrelative = -1
 	}
@@ -100,8 +93,6 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 	if err != nil {
 		return fmt.Errorf("error escribiendo MBR")
 	}
-
-	fmt.Printf("Disco creado: %s\n", path)
 
 	return nil
 }

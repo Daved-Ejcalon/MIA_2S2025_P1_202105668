@@ -6,25 +6,29 @@ import (
 	"strings"
 )
 
-// Mkfs, para formatear una partición montada con EXT2
+// Mkfs formatea una partición montada con sistema de archivos EXT2
 func Mkfs(mountID string, fsType string, formatType string) error {
+	// Validar que el ID de montaje esté presente
 	if mountID == "" {
-		return fmt.Errorf("parámetro -id requerido")
+		return fmt.Errorf("parametro -id requerido")
 	}
 
+	// Buscar la partición montada por ID
 	mountInfo, err := findMountedPartitionByID(mountID)
 	if err != nil {
-		return fmt.Errorf("partición no montada")
+		return fmt.Errorf("particion no montada")
 	}
 
+	// Validar tipo de formateo (Full por defecto)
 	if formatType == "" {
 		formatType = "Full"
 	}
 	formatType = strings.ToUpper(formatType)
 	if formatType != "FULL" {
-		return fmt.Errorf("tipo de formateo inválido")
+		return fmt.Errorf("tipo de formateo invalido")
 	}
 
+	// Validar sistema de archivos (2fs por defecto = EXT2)
 	if fsType == "" {
 		fsType = "2fs"
 	}
@@ -32,9 +36,7 @@ func Mkfs(mountID string, fsType string, formatType string) error {
 		return fmt.Errorf("sistema de archivos no soportado")
 	}
 
-	fmt.Printf("Formateando partición %s como EXT2\n", mountID)
-
-	// Convertir a System.MountInfo
+	// Crear estructura de montaje para el sistema de archivos
 	systemMountInfo := &System.MountInfo{
 		DiskPath:      mountInfo.DiskPath,
 		PartitionName: mountInfo.PartitionName,
@@ -43,24 +45,22 @@ func Mkfs(mountID string, fsType string, formatType string) error {
 		PartNumber:    mountInfo.PartNumber,
 	}
 
-	// Inicializar EXT2Manager
+	// Inicializar EXT2 manager y formatear la partición
 	ext2Manager := System.NewEXT2Manager(systemMountInfo)
 
-	// Ejecutar formateo
 	err = ext2Manager.FormatPartition()
 	if err != nil {
-		return fmt.Errorf("falló el formateo")
+		return fmt.Errorf("fallo el formateo")
 	}
-
-	fmt.Printf("Partición %s formateada como EXT2\n", mountID)
 
 	return nil
 }
 
-// findMountedPartitionByID busca una partición montada por su ID
+// findMountedPartitionByID busca una partición montada por su ID único
 func findMountedPartitionByID(mountID string) (*MountInfo, error) {
 	mountedPartitions := GetMountedPartitions()
 
+	// Buscar en lista de particiones montadas
 	for _, mount := range mountedPartitions {
 		if mount.MountID == mountID {
 			return &mount, nil

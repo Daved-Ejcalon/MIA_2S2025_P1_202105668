@@ -1,4 +1,3 @@
-// Package Partition maneja las operaciones de particiones y MBR
 package Partition
 
 import (
@@ -12,50 +11,45 @@ import (
 	"time"
 )
 
-// MBRManager maneja todas las operaciones del Master Boot Record
+// MBRManager maneja operaciones sobre el Master Boot Record del disco
 type MBRManager struct {
-	diskPath string // Ruta del archivo de disco
+	diskPath string
 }
 
-// NewMBRManager crea una nueva instancia del manager de MBR
 func NewMBRManager(diskPath string) *MBRManager {
 	return &MBRManager{
 		diskPath: diskPath,
 	}
 }
 
-// CreateMBR crea un nuevo MBR con los parámetros especificados
+// CreateMBR crea un MBR nuevo con tabla de particiones inicializada
 func (m *MBRManager) CreateMBR(diskSize int64, fitType byte) (*Models.MBR, error) {
-	// Validar tipo de ajuste
 	if !Models.IsValidFitType(fitType) {
-		return nil, fmt.Errorf("fit inválido")
+		return nil, fmt.Errorf("algoritmo de ajuste invalido")
 	}
 
-	// Validar tamaño del disco
 	if diskSize <= Models.MBR_SIZE {
-		return nil, fmt.Errorf("tamaño inválido")
+		return nil, fmt.Errorf("disco demasiado pequeno para MBR")
 	}
 
-	// Crear nuevo MBR
 	mbr := &Models.MBR{
 		MbrSize:         diskSize,
 		MbrCreationDate: time.Now().Unix(),
-		MbrSignature:    rand.Int63(), // Número random para identificar el disco
+		MbrSignature:    rand.Int63(),
 		DiskFit:         fitType,
 	}
 
-	// Inicializar particiones vacías
+	// Inicializar tabla de 4 particiones vacías
 	for i := 0; i < 4; i++ {
 		mbr.Partitions[i] = Models.Partition{
 			PartStatus:      Models.PARTITION_INACTIVE,
 			PartType:        0,
-			PartFit:         fitType, // Heredar el tipo de ajuste del MBR
+			PartFit:         fitType,
 			PartStart:       0,
 			PartSize:        0,
-			PartCorrelative: -1, // -1 indica partición no montada
+			PartCorrelative: -1,
 		}
 
-		// Limpiar nombre e ID
 		for j := range mbr.Partitions[i].PartName {
 			mbr.Partitions[i].PartName[j] = 0
 		}
@@ -67,29 +61,24 @@ func (m *MBRManager) CreateMBR(diskSize int64, fitType byte) (*Models.MBR, error
 	return mbr, nil
 }
 
-// WriteMBR escribe el MBR al archivo de disco en el offset 0
 func (m *MBRManager) WriteMBR(mbr *Models.MBR) error {
-	// Abrir archivo en modo lectura/escritura
 	file, err := os.OpenFile(m.diskPath, os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
-	// Posicionarse al inicio del archivo (offset 0)
 	_, err = file.Seek(0, 0)
 	if err != nil {
-		return fmt.Errorf("error posicionándose")
+		return fmt.Errorf("error posicionandose en el archivo")
 	}
 
-	// Serializar el MBR a bytes
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, mbr)
 	if err != nil {
 		return fmt.Errorf("error serializando MBR")
 	}
 
-	// Escribir al archivo
 	_, err = file.Write(buffer.Bytes())
 	if err != nil {
 		return fmt.Errorf("error escribiendo MBR")
@@ -98,34 +87,28 @@ func (m *MBRManager) WriteMBR(mbr *Models.MBR) error {
 	return nil
 }
 
-// ReadMBR lee el MBR desde el archivo de disco
 func (m *MBRManager) ReadMBR() (*Models.MBR, error) {
-	// Verificar que el archivo existe
 	if _, err := os.Stat(m.diskPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("el archivo de disco no existe: %s", m.diskPath)
 	}
 
-	// Abrir archivo en modo lectura
 	file, err := os.Open(m.diskPath)
 	if err != nil {
 		return nil, fmt.Errorf("error abriendo disco")
 	}
 	defer file.Close()
 
-	// Posicionarse al inicio del archivo
 	_, err = file.Seek(0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("error posicionándose")
 	}
 
-	// Leer bytes del MBR
 	mbrBytes := make([]byte, Models.MBR_SIZE)
 	_, err = file.Read(mbrBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error leyendo MBR")
 	}
 
-	// Deserializar bytes a estructura MBR
 	mbr := &Models.MBR{}
 	buffer := bytes.NewReader(mbrBytes)
 	err = binary.Read(buffer, binary.LittleEndian, mbr)
@@ -136,43 +119,39 @@ func (m *MBRManager) ReadMBR() (*Models.MBR, error) {
 	return mbr, nil
 }
 
-// AddPartition agrega una nueva partición al MBR
+// AddPartition agrega una nueva partición al MBR usando algoritmos de ajuste
 func (m *MBRManager) AddPartition(name string, size int64, partType byte, fitType byte) error {
-	// Leer MBR actual
 	mbr, err := m.ReadMBR()
 	if err != nil {
 		return fmt.Errorf("error leyendo MBR")
 	}
 
-	// Validar parámetros
 	if !Models.IsValidPartitionType(partType) {
-		return fmt.Errorf("tipo de partición inválido: %c. Use P o E", partType)
+		return fmt.Errorf("tipo de particion invalido: %c. Use P o E", partType)
 	}
 
 	if !Models.IsValidFitType(fitType) {
-		return fmt.Errorf("tipo de ajuste inválido: %c. Use B, F o W", fitType)
+		return fmt.Errorf("tipo de ajuste invalido: %c. Use B, F o W", fitType)
 	}
 
 	if size <= 0 {
-		return errors.New("el tamaño de la partición debe ser mayor a 0")
+		return errors.New("el tamano de la particion debe ser mayor a 0")
 	}
 
-	// Verificar que no existe ya una partición extendida si se está creando una
+	// Validar límite de una partición extendida por disco
 	if partType == Models.PARTITION_EXTENDED {
 		for i := 0; i < 4; i++ {
 			if mbr.Partitions[i].IsExtended() && !mbr.Partitions[i].IsEmptyPartition() {
-				return errors.New("solo puede existir una partición extendida por disco")
+				return errors.New("solo puede existir una particion extendida por disco")
 			}
 		}
 	}
 
-	// Buscar espacio disponible según el tipo de ajuste
 	partitionIndex, startPos, err := m.findAvailableSpace(mbr, size, fitType)
 	if err != nil {
 		return fmt.Errorf("no se pudo encontrar espacio: %v", err)
 	}
 
-	// Configurar la nueva partición
 	partition := &mbr.Partitions[partitionIndex]
 	partition.PartStatus = Models.PARTITION_INACTIVE
 	partition.PartType = partType
@@ -182,7 +161,6 @@ func (m *MBRManager) AddPartition(name string, size int64, partType byte, fitTyp
 	partition.PartCorrelative = -1
 	partition.SetPartitionName(name)
 
-	// Escribir MBR actualizado
 	err = m.WriteMBR(mbr)
 	if err != nil {
 		return fmt.Errorf("error escribiendo MBR")
@@ -191,9 +169,9 @@ func (m *MBRManager) AddPartition(name string, size int64, partType byte, fitTyp
 	return nil
 }
 
-// findAvailableSpace busca espacio disponible para una nueva partición
+// findAvailableSpace busca espacio disponible usando algoritmos FF/BF/WF
 func (m *MBRManager) findAvailableSpace(mbr *Models.MBR, size int64, fitType byte) (int, int64, error) {
-	// Buscar slot vacío en el MBR
+	// Buscar slot disponible en tabla de particiones
 	partitionIndex := -1
 	for i := 0; i < 4; i++ {
 		if mbr.Partitions[i].IsEmptyPartition() {
@@ -206,13 +184,11 @@ func (m *MBRManager) findAvailableSpace(mbr *Models.MBR, size int64, fitType byt
 		return -1, 0, errors.New("no hay slots disponibles en el MBR")
 	}
 
-	// Crear lista de espacios ocupados
+	// Mapear espacios ocupados incluyendo MBR y particiones existentes
 	occupiedSpaces := make([][2]int64, 0)
 
-	// El MBR ocupa el primer espacio
 	occupiedSpaces = append(occupiedSpaces, [2]int64{0, Models.MBR_SIZE})
 
-	// Agregar particiones existentes
 	for i := 0; i < 4; i++ {
 		partition := &mbr.Partitions[i]
 		if !partition.IsEmptyPartition() {
@@ -223,7 +199,6 @@ func (m *MBRManager) findAvailableSpace(mbr *Models.MBR, size int64, fitType byt
 		}
 	}
 
-	// Buscar espacio según el tipo de ajuste
 	switch fitType {
 	case Models.FIT_FIRST:
 		return partitionIndex, m.findFirstFit(occupiedSpaces, size, mbr.MbrSize), nil
@@ -236,9 +211,9 @@ func (m *MBRManager) findAvailableSpace(mbr *Models.MBR, size int64, fitType byt
 	}
 }
 
-// findFirstFit implementa el algoritmo First Fit
+// findFirstFit implementa algoritmo First Fit - primer espacio que ajuste
 func (m *MBRManager) findFirstFit(occupied [][2]int64, size int64, diskSize int64) int64 {
-	// Ordenar espacios ocupados por posición inicial
+	// Ordenar espacios ocupados por posición de inicio
 	for i := 0; i < len(occupied)-1; i++ {
 		for j := i + 1; j < len(occupied); j++ {
 			if occupied[i][0] > occupied[j][0] {
@@ -247,7 +222,6 @@ func (m *MBRManager) findFirstFit(occupied [][2]int64, size int64, diskSize int6
 		}
 	}
 
-	// Buscar el primer espacio disponible
 	for i := 0; i < len(occupied)-1; i++ {
 		availableStart := occupied[i][1]
 		availableEnd := occupied[i+1][0]
@@ -258,7 +232,6 @@ func (m *MBRManager) findFirstFit(occupied [][2]int64, size int64, diskSize int6
 		}
 	}
 
-	// Verificar espacio al final del disco
 	if len(occupied) > 0 {
 		lastEnd := occupied[len(occupied)-1][1]
 		if diskSize-lastEnd >= size {
@@ -266,15 +239,14 @@ func (m *MBRManager) findFirstFit(occupied [][2]int64, size int64, diskSize int6
 		}
 	}
 
-	return -1 // No hay espacio suficiente
+	return -1
 }
 
-// findBestFit implementa el algoritmo Best Fit
+// findBestFit implementa algoritmo Best Fit - menor espacio que ajuste
 func (m *MBRManager) findBestFit(occupied [][2]int64, size int64, diskSize int64) int64 {
 	bestStart := int64(-1)
-	bestSize := int64(diskSize) // Inicializar con el tamaño máximo
+	bestSize := int64(diskSize)
 
-	// Ordenar espacios ocupados
 	for i := 0; i < len(occupied)-1; i++ {
 		for j := i + 1; j < len(occupied); j++ {
 			if occupied[i][0] > occupied[j][0] {
@@ -283,7 +255,6 @@ func (m *MBRManager) findBestFit(occupied [][2]int64, size int64, diskSize int64
 		}
 	}
 
-	// Buscar entre espacios ocupados
 	for i := 0; i < len(occupied)-1; i++ {
 		availableStart := occupied[i][1]
 		availableEnd := occupied[i+1][0]
@@ -295,7 +266,6 @@ func (m *MBRManager) findBestFit(occupied [][2]int64, size int64, diskSize int64
 		}
 	}
 
-	// Verificar espacio al final
 	if len(occupied) > 0 {
 		lastEnd := occupied[len(occupied)-1][1]
 		finalSpace := diskSize - lastEnd
@@ -307,12 +277,11 @@ func (m *MBRManager) findBestFit(occupied [][2]int64, size int64, diskSize int64
 	return bestStart
 }
 
-// findWorstFit implementa el algoritmo Worst Fit
+// findWorstFit implementa algoritmo Worst Fit - mayor espacio disponible
 func (m *MBRManager) findWorstFit(occupied [][2]int64, size int64, diskSize int64) int64 {
 	worstStart := int64(-1)
 	worstSize := int64(-1)
 
-	// Ordenar espacios ocupados
 	for i := 0; i < len(occupied)-1; i++ {
 		for j := i + 1; j < len(occupied); j++ {
 			if occupied[i][0] > occupied[j][0] {
@@ -321,7 +290,6 @@ func (m *MBRManager) findWorstFit(occupied [][2]int64, size int64, diskSize int6
 		}
 	}
 
-	// Buscar entre espacios ocupados
 	for i := 0; i < len(occupied)-1; i++ {
 		availableStart := occupied[i][1]
 		availableEnd := occupied[i+1][0]
@@ -333,7 +301,6 @@ func (m *MBRManager) findWorstFit(occupied [][2]int64, size int64, diskSize int6
 		}
 	}
 
-	// Verificar espacio al final
 	if len(occupied) > 0 {
 		lastEnd := occupied[len(occupied)-1][1]
 		finalSpace := diskSize - lastEnd
@@ -345,14 +312,14 @@ func (m *MBRManager) findWorstFit(occupied [][2]int64, size int64, diskSize int6
 	return worstStart
 }
 
-// RemovePartition elimina una partición del MBR
+// RemovePartition elimina una partición del MBR por nombre
 func (m *MBRManager) RemovePartition(partitionName string) error {
 	mbr, err := m.ReadMBR()
 	if err != nil {
 		return fmt.Errorf("error leyendo MBR")
 	}
 
-	// Buscar la partición por nombre
+	// Buscar partición por nombre
 	partitionIndex := -1
 	for i := 0; i < 4; i++ {
 		if mbr.Partitions[i].GetPartitionName() == partitionName {
@@ -362,17 +329,15 @@ func (m *MBRManager) RemovePartition(partitionName string) error {
 	}
 
 	if partitionIndex == -1 {
-		return fmt.Errorf("partición '%s' no encontrada", partitionName)
+		return fmt.Errorf("particion '%s' no encontrada", partitionName)
 	}
 
-	// Limpiar la partición
 	partition := &mbr.Partitions[partitionIndex]
 	*partition = Models.Partition{
 		PartStatus:      Models.PARTITION_INACTIVE,
 		PartCorrelative: -1,
 	}
 
-	// Escribir MBR actualizado
 	err = m.WriteMBR(mbr)
 	if err != nil {
 		return fmt.Errorf("error escribiendo MBR")
@@ -381,13 +346,14 @@ func (m *MBRManager) RemovePartition(partitionName string) error {
 	return nil
 }
 
-// GetPartitions retorna la lista de particiones del MBR
+// GetPartitions retorna lista de particiones activas del MBR
 func (m *MBRManager) GetPartitions() ([]Models.Partition, error) {
 	mbr, err := m.ReadMBR()
 	if err != nil {
 		return nil, fmt.Errorf("error leyendo MBR")
 	}
 
+	// Recopilar solo particiones no vacías
 	partitions := make([]Models.Partition, 0)
 	for i := 0; i < 4; i++ {
 		if !mbr.Partitions[i].IsEmptyPartition() {
@@ -398,53 +364,48 @@ func (m *MBRManager) GetPartitions() ([]Models.Partition, error) {
 	return partitions, nil
 }
 
-// ValidateMBR valida la consistencia del MBR
+// ValidateMBR verifica integridad del MBR y sus particiones
 func (m *MBRManager) ValidateMBR() error {
 	mbr, err := m.ReadMBR()
 	if err != nil {
 		return fmt.Errorf("error leyendo MBR")
 	}
 
-	// Validar firma del disco
+	// Validar metadatos básicos del MBR
 	if mbr.MbrSignature == 0 {
-		return errors.New("firma del disco inválida")
+		return errors.New("firma del disco invalida")
 	}
 
-	// Validar tamaño del disco
 	if mbr.MbrSize <= Models.MBR_SIZE {
-		return errors.New("tamaño del disco inválido")
+		return errors.New("tamano del disco invalido")
 	}
 
-	// Validar tipo de ajuste del disco
 	if !Models.IsValidFitType(mbr.DiskFit) {
-		return errors.New("tipo de ajuste del disco inválido")
+		return errors.New("tipo de ajuste del disco invalido")
 	}
 
-	// Validar particiones
+	// Validar límites de particiones y restricción de extendidas
 	extendedCount := 0
 	for i := 0; i < 4; i++ {
 		partition := &mbr.Partitions[i]
 
 		if !partition.IsEmptyPartition() {
-			// Validar que la partición esté dentro del disco
 			if partition.PartStart < Models.MBR_SIZE {
-				return fmt.Errorf("partición %d inicia antes del final del MBR", i)
+				return fmt.Errorf("particion %d inicia antes del final del MBR", i)
 			}
 
 			if partition.GetPartitionEnd() > mbr.MbrSize {
-				return fmt.Errorf("partición %d excede el tamaño del disco", i)
+				return fmt.Errorf("particion %d excede el tamano del disco", i)
 			}
 
-			// Contar particiones extendidas
 			if partition.IsExtended() {
 				extendedCount++
 			}
 		}
 	}
 
-	// Validar que no haya más de una partición extendida
 	if extendedCount > 1 {
-		return errors.New("no puede haber más de una partición extendida")
+		return errors.New("no puede haber mas de una particion extendida")
 	}
 
 	return nil

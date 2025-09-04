@@ -4,114 +4,212 @@ import (
 	"MIA_2S2025_P1_202105668/Logica/Disk"
 	"bufio"
 	"fmt"
-	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
 func main() {
-	fmt.Println("=== PRUEBA DEL SISTEMA DE ARCHIVOS EXT2 ===")
 
-	if err := ejecutarPruebas(); err != nil {
-		log.Fatal("Error en las pruebas:", err)
-	}
+	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Println("\n=== TODAS LAS PRUEBAS COMPLETADAS ===")
-	fmt.Println("Archivo generado: ./TestDisco.mia")
+	for {
+		fmt.Print("MIA> ")
 
-	if preguntarEliminarArchivo() {
-		if err := Disk.RmDisk("./TestDisco.mia"); err != nil {
-			fmt.Println("Error eliminando:", err)
-		} else {
-			fmt.Println("✅ Archivo de prueba eliminado")
+		if !scanner.Scan() {
+			break
+		}
+
+		input := strings.TrimSpace(scanner.Text())
+		
+		// Ignorar líneas que empiecen con # (comentarios)
+		if strings.HasPrefix(input, "#") || input == "" {
+			continue
+		}
+
+		// Remover comentarios inline (después del comando)
+		if commentIndex := strings.Index(input, "#"); commentIndex != -1 {
+			input = strings.TrimSpace(input[:commentIndex])
+		}
+
+		// Si después de remover comentarios queda vacío, continuar
+		if input == "" {
+			continue
+		}
+
+		if input == "exit" {
+			fmt.Println("saliendo del sistema...")
+			break
+		}
+
+		err := processCommand(input)
+		if err != nil {
+			fmt.Printf("error: %s\n", err.Error())
 		}
 	}
 }
 
-func ejecutarPruebas() error {
-	// Ejecutar todas las pruebas en secuencia
-	if err := crearDisco(); err != nil {
-		return err
+func processCommand(input string) error {
+	parts := strings.Fields(input)
+	if len(parts) == 0 {
+		return fmt.Errorf("comando vacio")
 	}
 
-	if err := crearParticionPrimaria(); err != nil {
-		return err
-	}
+	command := strings.ToLower(parts[0])
+	params := parseParameters(parts[1:])
 
-	if err := crearParticionExtendida(); err != nil {
-		return err
-	}
 
-	if err := crearParticionLogica(); err != nil {
-		return err
+	switch command {
+	case "mkdisk":
+		return processMkdisk(params)
+	case "rmdisk":
+		return processRmdisk(params)
+	case "fdisk":
+		return processFdisk(params)
+	case "mount":
+		return processMount(params)
+	case "mounted":
+		Disk.Mounted()
+		return nil
+	case "mkfs":
+		return processMkfs(params)
+	case "cat":
+		return Disk.Cat(params)
+	case "showdisk":
+		return Disk.ShowDisk(params)
+	default:
+		return fmt.Errorf("comando '%s' no reconocido", command)
 	}
-
-	if err := mostrarParticiones(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
-func crearDisco() error {
-	fmt.Println("\n1. Creando disco de 50MB...")
-	err := Disk.MkDisk(50, "M", "FF", "./TestDisco.mia")
-	if err != nil {
-		return fmt.Errorf("error creando disco: %w", err)
+func processMkdisk(params map[string]string) error {
+	sizeStr, hasSize := params["size"]
+	if !hasSize {
+		return fmt.Errorf("parametro -size requerido")
 	}
-	fmt.Println("✅ Disco creado exitosamente")
-	return nil
+
+	size, err := strconv.ParseInt(sizeStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("size invalido: %v", err)
+	}
+
+	unit := params["unit"]
+	if unit == "" {
+		unit = "K"
+	}
+
+	fit := params["fit"]
+	if fit == "" {
+		fit = "WF"
+	}
+
+	path := params["path"]
+	if path == "" {
+		return fmt.Errorf("parametro -path requerido")
+	}
+
+	return Disk.MkDisk(size, unit, fit, path)
 }
 
-func crearParticionPrimaria() error {
-	fmt.Println("\n2. Creando partición primaria de 10MB...")
-	err := Disk.Fdisk(10, "M", "WF", "./TestDisco.mia", "P", "Particion1")
-	if err != nil {
-		return fmt.Errorf("error creando partición primaria: %w", err)
+func processRmdisk(params map[string]string) error {
+	path := params["path"]
+	if path == "" {
+		return fmt.Errorf("parametro -path requerido")
 	}
-	fmt.Println("✅ Partición primaria creada exitosamente")
-	return nil
+
+	return Disk.RmDisk(path)
 }
 
-func crearParticionExtendida() error {
-	fmt.Println("\n3. Creando partición extendida de 15MB...")
-	err := Disk.Fdisk(15, "M", "WF", "./TestDisco.mia", "E", "Extendida1")
-	if err != nil {
-		return fmt.Errorf("error creando partición extendida: %w", err)
+func processFdisk(params map[string]string) error {
+	sizeStr, hasSize := params["size"]
+	if !hasSize {
+		return fmt.Errorf("parametro -size requerido")
 	}
-	fmt.Println("✅ Partición extendida creada exitosamente")
-	return nil
+
+	size, err := strconv.ParseInt(sizeStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("size invalido: %v", err)
+	}
+
+	unit := params["unit"]
+	if unit == "" {
+		unit = "K"
+	}
+
+	fit := params["fit"]
+	if fit == "" {
+		fit = "WF"
+	}
+
+	path := params["path"]
+	if path == "" {
+		return fmt.Errorf("parametro -path requerido")
+	}
+
+	ptype := params["type"]
+	if ptype == "" {
+		ptype = "P"
+	}
+
+	name := params["name"]
+	if name == "" {
+		return fmt.Errorf("parametro -name requerido")
+	}
+
+	return Disk.Fdisk(size, unit, fit, path, ptype, name)
 }
 
-func crearParticionLogica() error {
-	fmt.Println("\n4. Creando partición lógica de 5MB...")
-	err := Disk.Fdisk(5, "M", "WF", "./TestDisco.mia", "L", "Logica1")
-	if err != nil {
-		return fmt.Errorf("error creando partición lógica: %w", err)
+func processMount(params map[string]string) error {
+	path := params["path"]
+	if path == "" {
+		return fmt.Errorf("parametro -path requerido")
 	}
-	fmt.Println("✅ Partición lógica creada exitosamente")
-	return nil
+
+	name := params["name"]
+	if name == "" {
+		return fmt.Errorf("parametro -name requerido")
+	}
+
+	return Disk.Mount(path, name)
 }
 
-func mostrarParticiones() error {
-	fmt.Println("\n5. Mostrando información del disco...")
-	err := Disk.ShowDisk("./TestDisco.mia")
-	if err != nil {
-		return fmt.Errorf("error mostrando particiones: %w", err)
+func processMkfs(params map[string]string) error {
+	id := params["id"]
+	if id == "" {
+		return fmt.Errorf("parametro -id requerido")
 	}
-	fmt.Println("✅ Información mostrada exitosamente")
-	return nil
+
+	fsType := params["type"]
+	if fsType == "" {
+		fsType = "ext2"
+	}
+
+	formatType := params["format"]
+	if formatType == "" {
+		formatType = "full"
+	}
+
+	return Disk.Mkfs(id, fsType, formatType)
 }
 
-func preguntarEliminarArchivo() bool {
-	fmt.Print("\n¿Deseas eliminar el archivo de prueba? (s/n): ")
-	reader := bufio.NewReader(os.Stdin)
-	respuesta, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error leyendo respuesta, manteniendo archivo")
-		return false
+func parseParameters(args []string) map[string]string {
+	params := make(map[string]string)
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		if strings.HasPrefix(arg, "-") {
+			if strings.Contains(arg, "=") {
+				parts := strings.SplitN(arg, "=", 2)
+				key := strings.TrimPrefix(parts[0], "-")
+				value := strings.Trim(parts[1], "\"")
+				params[key] = value
+			} else {
+				key := strings.TrimPrefix(arg, "-")
+				params[key] = "true"
+			}
+		}
 	}
 
-	respuesta = strings.TrimSpace(strings.ToLower(respuesta))
-	return respuesta == "s" || respuesta == "si" || respuesta == "y" || respuesta == "yes"
+	return params
 }

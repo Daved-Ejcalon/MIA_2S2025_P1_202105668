@@ -1,4 +1,3 @@
-// Package Models define las estructuras de datos para el sistema EBR
 package Models
 
 import (
@@ -6,43 +5,37 @@ import (
 	"unsafe"
 )
 
-// EBR (Extended Boot Record) estructura para particiones lógicas
-// Implementa una lista enlazada donde cada EBR apunta al siguiente
-// Reside dentro del espacio de la partición extendida
+// EBR (Extended Boot Record) maneja particiones logicas en lista enlazada
 type EBR struct {
-	PartMount byte     // Estado de montaje de la partición lógica
-	PartFit   byte     // B (Best) / F (First) / W (Worst)
-	PartStart int64    // Byte donde inicia la partición lógica (relativo al disco)
-	PartS     int64    // Tamaño total de la partición en bytes
-	PartNext  int64    // Byte donde está el próximo EBR (-1 si no hay siguiente)
-	PartName  [16]byte // Nombre de la partición lógica (máximo 16 caracteres)
+	PartMount byte      // Estado de montaje (0=desmontado, 1=montado)
+	PartFit   byte      // Algoritmo de ajuste (B=Best, F=First, W=Worst)
+	PartStart int64     // Posicion de inicio de la particion
+	PartS     int64     // Tamaño de la particion
+	PartNext  int64     // Posicion del siguiente EBR (-1 si es el ultimo)
+	PartName  [16]byte  // Nombre de la particion (max 15 caracteres)
 }
 
-// Constantes para estado de montaje del EBR
 const (
-	EBR_MOUNTED   = 1 // Partición lógica montada
-	EBR_UNMOUNTED = 0 // Partición lógica no montada
+	EBR_MOUNTED   = 1
+	EBR_UNMOUNTED = 0
 )
 
-// Constantes del sistema EBR
 const (
-	EBR_SIZE = 1024 // Tamaño del EBR en bytes (1 KB, similar al MBR)
-	EBR_END  = -1   // Valor que indica fin de lista enlazada
+	EBR_SIZE = 1024
+	EBR_END  = -1
 )
 
-// GetEBRSize retorna el tamaño en bytes de la estructura EBR
 func GetEBRSize() int {
 	return int(unsafe.Sizeof(EBR{}))
 }
 
-// IsEmptyEBR verifica si un EBR está vacío/sin usar
+// IsEmptyEBR verifica si el EBR esta vacio (sin particion asignada)
 func (e *EBR) IsEmptyEBR() bool {
 	return e.PartStart == 0 && e.PartS == 0
 }
 
-// GetLogicalPartitionName retorna el nombre de la partición lógica como string
+// GetLogicalPartitionName extrae el nombre como string eliminando bytes nulos
 func (e *EBR) GetLogicalPartitionName() string {
-	// Convertir array de bytes a string eliminando null bytes
 	name := make([]byte, 0, 16)
 	for _, b := range e.PartName {
 		if b == 0 {
@@ -53,14 +46,14 @@ func (e *EBR) GetLogicalPartitionName() string {
 	return string(name)
 }
 
-// SetLogicalPartitionName establece el nombre de la partición lógica
+// SetLogicalPartitionName asigna nombre limitado a 15 caracteres
 func (e *EBR) SetLogicalPartitionName(name string) {
-	// Limpiar el array
+	// Limpiar nombre anterior
 	for i := range e.PartName {
 		e.PartName[i] = 0
 	}
 
-	// Copiar el nombre limitado a 15 caracteres (dejando espacio para null terminator)
+	// Copiar nombre nuevo con limite de 15 caracteres
 	nameBytes := []byte(name)
 	maxLen := 15
 	if len(nameBytes) < maxLen {
@@ -72,85 +65,72 @@ func (e *EBR) SetLogicalPartitionName(name string) {
 	}
 }
 
-// IsMounted verifica si la partición lógica está montada
 func (e *EBR) IsMounted() bool {
 	return e.PartMount == EBR_MOUNTED
 }
 
-// Mount marca la partición lógica como montada
 func (e *EBR) Mount() {
 	e.PartMount = EBR_MOUNTED
 }
 
-// Unmount marca la partición lógica como desmontada
 func (e *EBR) Unmount() {
 	e.PartMount = EBR_UNMOUNTED
 }
 
-// HasNext verifica si hay un siguiente EBR en la lista enlazada
+// HasNext verifica si existe un EBR siguiente en la cadena
 func (e *EBR) HasNext() bool {
 	return e.PartNext != EBR_END
 }
 
-// GetPartitionEnd retorna la posición donde termina la partición lógica
+// GetPartitionEnd calcula la posicion final de la particion
 func (e *EBR) GetPartitionEnd() int64 {
 	return e.PartStart + e.PartS
 }
 
-// GetNextEBRPosition retorna la posición del siguiente EBR
-// Retorna -1 si no hay siguiente EBR
 func (e *EBR) GetNextEBRPosition() int64 {
 	return e.PartNext
 }
 
-// SetNextEBRPosition establece la posición del siguiente EBR
 func (e *EBR) SetNextEBRPosition(position int64) {
 	e.PartNext = position
 }
 
-// MarkAsLastEBR marca este EBR como el último de la lista enlazada
 func (e *EBR) MarkAsLastEBR() {
 	e.PartNext = EBR_END
 }
 
-// IsLastEBR verifica si este es el último EBR en la lista enlazada
 func (e *EBR) IsLastEBR() bool {
 	return e.PartNext == EBR_END
 }
 
-// IsValidFitType verifica si el tipo de ajuste del EBR es válido
 func (e *EBR) IsValidFitType() bool {
 	return IsValidFitType(e.PartFit)
 }
 
-// GetEBROffset retorna el offset donde debería escribirse este EBR
-// Esto es útil para calcular posiciones en la lista enlazada
+// GetEBROffset calcula posicion del EBR (antes de la particion)
 func (e *EBR) GetEBROffset() int64 {
-	// El EBR se escribe justo antes de los datos de la partición lógica
 	return e.PartStart - EBR_SIZE
 }
 
-// ValidateEBR verifica que los campos del EBR sean consistentes
+// ValidateEBR verifica integridad de los datos del EBR
 func (e *EBR) ValidateEBR() error {
-	// Validar que el tamaño sea positivo si no es EBR vacío
+	// Solo validar si el EBR no esta vacio
 	if !e.IsEmptyEBR() && e.PartS <= 0 {
-		return fmt.Errorf("el tamaño de la partición lógica debe ser mayor a 0")
+		return fmt.Errorf("el tamano de la particion logica debe ser mayor a 0")
 	}
 
-	// Validar tipo de ajuste
 	if !e.IsEmptyEBR() && !e.IsValidFitType() {
-		return fmt.Errorf("tipo de ajuste inválido: %c", e.PartFit)
+		return fmt.Errorf("algoritmo de ajuste invalido: %c", e.PartFit)
 	}
 
-	// Validar que PartStart sea válido
 	if !e.IsEmptyEBR() && e.PartStart <= 0 {
-		return fmt.Errorf("posición de inicio inválida: %d", e.PartStart)
+		return fmt.Errorf("posicion de inicio invalida: %d", e.PartStart)
 	}
 
 	return nil
 }
 
-// ClearEBR limpia todos los campos del EBR (para eliminación)
+// ClearEBR limpia completamente el EBR dejandolo vacio
 func (e *EBR) ClearEBR() {
 	e.PartMount = EBR_UNMOUNTED
 	e.PartFit = 0
@@ -158,22 +138,22 @@ func (e *EBR) ClearEBR() {
 	e.PartS = 0
 	e.PartNext = EBR_END
 
-	// Limpiar nombre
+	// Limpiar nombre de la particion
 	for i := range e.PartName {
 		e.PartName[i] = 0
 	}
 }
 
-// LogicalPartitionInfo estructura auxiliar para información de partición lógica
+// LogicalPartitionInfo contiene informacion resumida de particion logica
 type LogicalPartitionInfo struct {
-	Name        string // Nombre de la partición lógica
-	Start       int64  // Posición de inicio
-	Size        int64  // Tamaño en bytes
-	IsMounted   bool   // Estado de montaje
-	EBRPosition int64  // Posición del EBR que la describe
+	Name        string  // Nombre de la particion
+	Start       int64   // Posicion de inicio
+	Size        int64   // Tamaño en bytes
+	IsMounted   bool    // Estado de montaje
+	EBRPosition int64   // Posicion del EBR en disco
 }
 
-// ToLogicalPartitionInfo convierte un EBR a información de partición lógica
+// ToLogicalPartitionInfo convierte EBR a estructura de informacion
 func (e *EBR) ToLogicalPartitionInfo(ebrPosition int64) LogicalPartitionInfo {
 	return LogicalPartitionInfo{
 		Name:        e.GetLogicalPartitionName(),
