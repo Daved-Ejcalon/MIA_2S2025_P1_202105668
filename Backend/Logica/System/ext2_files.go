@@ -49,7 +49,7 @@ func (f *EXT2FileManager) ReadFileContent(filePath string) (string, error) {
 func (f *EXT2FileManager) WriteFileContent(filePath string, content string, uid int32, gid int32, permissions int32) error {
 	// Separar ruta padre y nombre del archivo
 	parentPath, fileName := f.splitPath(filePath)
-	
+
 	// Verificar directorio padre
 	parentInodoNum, err := f.findFileInode(parentPath)
 	if err != nil {
@@ -125,10 +125,10 @@ func (f *EXT2FileManager) findInDirectory(dirInodo *Models.Inodo, filename strin
 		}
 
 		for _, entry := range dirBlock.B_content {
-			if entry.B_inodo != Models.FREE_INODE {
+			if int32(entry.B_inodo) != Models.FREE_INODE {
 				entryName := strings.TrimRight(string(entry.B_name[:]), "\x00")
 				if entryName == filename {
-					return entry.B_inodo, nil
+					return int32(entry.B_inodo), nil
 				}
 			}
 		}
@@ -226,7 +226,7 @@ func (f *EXT2FileManager) readFileBlock(blockNumber int32) ([]byte, error) {
 		return nil, err
 	}
 
-	return fileBlock.B_content[:], nil
+	return fileBlock.GetContent(), nil
 }
 
 func (f *EXT2FileManager) overwriteFileContent(inodeNumber int32, content string) error {
@@ -321,7 +321,7 @@ func (f *EXT2FileManager) writeFileBlock(blockNumber int32, content string) erro
 	}
 
 	fileBlock := Models.BloqueArchivos{}
-	copy(fileBlock.B_content[:], content)
+	fileBlock.SetContent([]byte(content))
 
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, &fileBlock)
@@ -523,8 +523,8 @@ func (f *EXT2FileManager) addEntryToDirectory(dirInodeNum int32, filename string
 		}
 
 		for j := 0; j < len(dirBlock.B_content); j++ {
-			if dirBlock.B_content[j].B_inodo == Models.FREE_INODE {
-				dirBlock.B_content[j].B_inodo = fileInodeNum
+			if int32(dirBlock.B_content[j].B_inodo) == Models.FREE_INODE {
+				dirBlock.B_content[j].B_inodo = int(fileInodeNum)
 				copy(dirBlock.B_content[j].B_name[:], filename)
 				return f.writeDirectoryBlock(dirInodo.I_block[i], dirBlock)
 			}
@@ -561,15 +561,15 @@ func (f *EXT2FileManager) writeDirectoryBlock(blockNumber int32, dirBlock *Model
 func (f *EXT2FileManager) splitPath(filePath string) (string, string) {
 	filePath = strings.Trim(filePath, "/")
 	parts := strings.Split(filePath, "/")
-	
+
 	// Caso especial: archivo en directorio raiz
 	if len(parts) <= 1 {
 		return "/", parts[0]
 	}
-	
+
 	// Separar nombre del archivo y construir ruta del padre
 	fileName := parts[len(parts)-1]
 	parentPath := "/" + strings.Join(parts[:len(parts)-1], "/")
-	
+
 	return parentPath, fileName
 }

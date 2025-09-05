@@ -28,31 +28,38 @@ type SuperBloque struct {
 
 // Inodo representa un archivo o directorio con metadatos y punteros a bloques
 type Inodo struct {
-	I_uid   int32       // ID del usuario propietario
-	I_gid   int32       // ID del grupo propietario
-	I_s     int32       // Tamano en bytes
-	I_atime float64     // Tiempo de ultimo acceso
-	I_ctime float64     // Tiempo de creacion
-	I_mtime float64     // Tiempo de ultima modificacion
-	I_block [15]int32   // Punteros a bloques (12 directos + 3 indirectos)
-	I_type  byte        // Tipo: 0=directorio, 1=archivo
-	I_perm  [3]byte     // Permisos en formato octal (owner, group, others)
+	I_uid   int32     // ID del usuario propietario
+	I_gid   int32     // ID del grupo propietario
+	I_s     int32     // Tamano en bytes
+	I_atime float64   // Tiempo de ultimo acceso
+	I_ctime float64   // Tiempo de creacion
+	I_mtime float64   // Tiempo de ultima modificacion
+	I_block [15]int32 // Punteros a bloques (12 directos + 3 indirectos)
+	I_type  byte      // Tipo: 0=directorio, 1=archivo
+	I_perm  [3]byte   // Permisos en formato octal (owner, group, others)
 }
 
-// BloqueCarpeta contiene hasta 4 referencias de archivos/directorios
 type BloqueCarpeta struct {
-	B_content [4]FolderReference // Array de referencias a inodos
+	B_content [4]B_content
 }
 
-// FolderReference enlaza un nombre con su inodo correspondiente
-type FolderReference struct {
-	B_inodo int32      // Numero de inodo referenciado
-	B_name  [12]byte   // Nombre del archivo/directorio (max 11 caracteres)
+type B_content struct {
+	B_name  [12]byte
+	B_inodo int
 }
 
-// BloqueArchivos almacena contenido de archivos (64 bytes por bloque)
 type BloqueArchivos struct {
-	B_content [64]byte // Contenido del archivo
+	b_content [64]byte
+}
+
+// GetContent returns a slice of the content bytes
+func (ba *BloqueArchivos) GetContent() []byte {
+	return ba.b_content[:]
+}
+
+// SetContent copies the provided content into the content array
+func (ba *BloqueArchivos) SetContent(content []byte) {
+	copy(ba.b_content[:], content)
 }
 
 type BloqueContenido struct {
@@ -95,17 +102,17 @@ func GetBloqueSize() int {
 // NewSuperBloque crea un SuperBloque inicializado con layout EXT2
 func NewSuperBloque(inodesCount, blocksCount int32) SuperBloque {
 	currentTime := float64(time.Now().Unix())
-	
+
 	// Calcular posiciones de estructuras en el disco
 	inodeBitmapSize := inodesCount
 	blockBitmapSize := blocksCount
-	
+
 	return SuperBloque{
 		S_filesystem_type:   2,
 		S_inodes_count:      inodesCount,
 		S_blocks_count:      blocksCount,
-		S_free_blocks_count: blocksCount - 2,  // -2 por root y users.txt
-		S_free_inodes_count: inodesCount - 2,  // -2 por root y users.txt
+		S_free_blocks_count: blocksCount - 2, // -2 por root y users.txt
+		S_free_inodes_count: inodesCount - 2, // -2 por root y users.txt
 		S_mtime:             currentTime,
 		S_umtime:            0.0,
 		S_mnt_count:         1,
@@ -124,7 +131,7 @@ func NewSuperBloque(inodesCount, blocksCount int32) SuperBloque {
 // NewRootInodo crea el inodo del directorio raiz con permisos 755
 func NewRootInodo() Inodo {
 	currentTime := float64(time.Now().Unix())
-	
+
 	// Crear inodo del directorio raiz
 	inodo := Inodo{
 		I_uid:   1,
@@ -136,19 +143,19 @@ func NewRootInodo() Inodo {
 		I_type:  INODO_DIRECTORIO,
 		I_perm:  SetPermissions(755),
 	}
-	
+
 	for i := range inodo.I_block {
 		inodo.I_block[i] = FREE_BLOCK
 	}
-	
+
 	inodo.I_block[0] = 0
-	
+
 	return inodo
 }
 
 func NewRootDirectory() BloqueCarpeta {
 	rootDir := BloqueCarpeta{}
-	
+
 	// Inicializar todas las entradas como vacias
 	for i := range rootDir.B_content {
 		rootDir.B_content[i].B_inodo = FREE_INODE
@@ -156,15 +163,15 @@ func NewRootDirectory() BloqueCarpeta {
 			rootDir.B_content[i].B_name[j] = 0
 		}
 	}
-	
+
 	// Crear entrada "." (directorio actual)
 	rootDir.B_content[0].B_inodo = ROOT_INODE
 	copy(rootDir.B_content[0].B_name[:], ".")
-	
+
 	// Crear entrada ".." (directorio padre)
 	rootDir.B_content[1].B_inodo = ROOT_INODE
 	copy(rootDir.B_content[1].B_name[:], "..")
-	
+
 	return rootDir
 }
 
@@ -180,7 +187,7 @@ func SetBitmapBit(bitmap []byte, position int) {
 	if position < 0 || position >= len(bitmap)*8 {
 		return
 	}
-	
+
 	// Calcular indices de byte y bit para marcar como usado
 	byteIndex := position / 8
 	bitIndex := position % 8
@@ -191,7 +198,7 @@ func ClearBitmapBit(bitmap []byte, position int) {
 	if position < 0 || position >= len(bitmap)*8 {
 		return
 	}
-	
+
 	// Calcular indices de byte y bit para marcar como libre
 	byteIndex := position / 8
 	bitIndex := position % 8
@@ -202,7 +209,7 @@ func IsBitmapBitSet(bitmap []byte, position int) bool {
 	if position < 0 || position >= len(bitmap)*8 {
 		return false
 	}
-	
+
 	byteIndex := position / 8
 	bitIndex := position % 8
 	return (bitmap[byteIndex] & (1 << (7 - bitIndex))) != 0

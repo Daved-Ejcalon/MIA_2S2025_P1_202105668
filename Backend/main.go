@@ -21,7 +21,7 @@ func main() {
 		}
 
 		input := strings.TrimSpace(scanner.Text())
-		
+
 		// Ignorar líneas que empiecen con # (comentarios)
 		if strings.HasPrefix(input, "#") || input == "" {
 			continue
@@ -57,7 +57,6 @@ func processCommand(input string) error {
 
 	command := strings.ToLower(parts[0])
 	params := parseParameters(parts[1:])
-
 
 	switch command {
 	case "mkdisk":

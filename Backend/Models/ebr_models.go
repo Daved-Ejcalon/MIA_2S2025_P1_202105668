@@ -7,12 +7,12 @@ import (
 
 // EBR (Extended Boot Record) maneja particiones logicas en lista enlazada
 type EBR struct {
-	PartMount byte      // Estado de montaje (0=desmontado, 1=montado)
-	PartFit   byte      // Algoritmo de ajuste (B=Best, F=First, W=Worst)
-	PartStart int64     // Posicion de inicio de la particion
-	PartS     int64     // Tamaño de la particion
-	PartNext  int64     // Posicion del siguiente EBR (-1 si es el ultimo)
-	PartName  [16]byte  // Nombre de la particion (max 15 caracteres)
+	PartMount byte     // Estado de montaje (0=desmontado, 1=montado)
+	PartFit   byte     // Algoritmo de ajuste (B=Best, F=First, W=Worst)
+	PartStart int64    // Posicion de inicio de la particion
+	PartS     int64    // Tamaño de la particion
+	PartNext  int64    // Posicion del siguiente EBR (-1 si es el ultimo)
+	PartName  [16]byte // Nombre de la particion (max 15 caracteres)
 }
 
 const (
@@ -146,11 +146,11 @@ func (e *EBR) ClearEBR() {
 
 // LogicalPartitionInfo contiene informacion resumida de particion logica
 type LogicalPartitionInfo struct {
-	Name        string  // Nombre de la particion
-	Start       int64   // Posicion de inicio
-	Size        int64   // Tamaño en bytes
-	IsMounted   bool    // Estado de montaje
-	EBRPosition int64   // Posicion del EBR en disco
+	Name        string // Nombre de la particion
+	Start       int64  // Posicion de inicio
+	Size        int64  // Tamaño en bytes
+	IsMounted   bool   // Estado de montaje
+	EBRPosition int64  // Posicion del EBR en disco
 }
 
 // ToLogicalPartitionInfo convierte EBR a estructura de informacion

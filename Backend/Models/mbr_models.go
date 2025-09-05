@@ -6,23 +6,23 @@ import (
 
 // Partition representa una entrada de particion en la tabla MBR
 type Partition struct {
-	PartStatus      byte       // Estado de montaje (0=inactiva, 1=activa)
-	PartType        byte       // Tipo: P=primaria, E=extendida, L=logica
-	PartFit         byte       // Algoritmo: F=First, B=Best, W=Worst
-	PartStart       int64      // Posicion de inicio en bytes
-	PartSize        int64      // Tamano de la particion en bytes
-	PartName        [16]byte   // Nombre de la particion (max 15 caracteres)
-	PartCorrelative int64      // Numero correlativo para montaje
-	PartID          [4]byte    // ID de montaje asignado
+	PartStatus      byte     // Estado de montaje (0=inactiva, 1=activa)
+	PartType        byte     // Tipo: P=primaria, E=extendida, L=logica
+	PartFit         byte     // Algoritmo: F=First, B=Best, W=Worst
+	PartStart       int64    // Posicion de inicio en bytes
+	PartSize        int64    // Tamano de la particion en bytes
+	PartName        [16]byte // Nombre de la particion (max 15 caracteres)
+	PartCorrelative int64    // Numero correlativo para montaje
+	PartID          [4]byte  // ID de montaje asignado
 }
 
 // MBR contiene metadatos del disco y tabla de particiones
 type MBR struct {
-	MbrSize         int64          // Tamano total del disco en bytes
-	MbrCreationDate int64          // Timestamp de creacion del disco
-	MbrSignature    int64          // Numero aleatorio de identificacion
-	DiskFit         byte           // Algoritmo de ajuste por defecto
-	Partitions      [4]Partition   // Tabla de particiones (max 4 entradas)
+	MbrSize         int64        // Tamano total del disco en bytes
+	MbrCreationDate int64        // Timestamp de creacion del disco
+	MbrSignature    int64        // Numero aleatorio de identificacion
+	DiskFit         byte         // Algoritmo de ajuste por defecto
+	Partitions      [4]Partition // Tabla de particiones (max 4 entradas)
 }
 
 const (

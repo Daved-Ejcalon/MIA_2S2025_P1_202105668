@@ -18,10 +18,10 @@ type MountInfo struct {
 
 // Variables globales para el sistema de montaje
 var (
-	mountedPartitions   []MountInfo        // Lista de particiones montadas
-	diskLetterMap       map[string]rune    // Mapeo de disco a letra asignada
-	diskPartitionCount  map[string]int     // Contador de particiones por disco
-	nextAvailableLetter rune = 'A'         // Siguiente letra disponible
+	mountedPartitions   []MountInfo           // Lista de particiones montadas
+	diskLetterMap       map[string]rune       // Mapeo de disco a letra asignada
+	diskPartitionCount  map[string]int        // Contador de particiones por disco
+	nextAvailableLetter rune            = 'A' // Siguiente letra disponible
 )
 
 // initMountSystem inicializa los mapas del sistema de montaje

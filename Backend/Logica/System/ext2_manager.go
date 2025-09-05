@@ -328,7 +328,7 @@ func (e *EXT2Manager) createUsersFile() error {
 	}
 
 	contentBlock := Models.BloqueArchivos{}
-	copy(contentBlock.B_content[:], usersContent)
+	contentBlock.SetContent([]byte(usersContent))
 
 	buffer = new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, &contentBlock)
@@ -366,8 +366,8 @@ func (e *EXT2Manager) addFileToRootDirectory(filename string, inodoNumber int32)
 
 	// Buscar primera entrada libre (indices 0,1 son . y ..)
 	for i := 2; i < len(rootDir.B_content); i++ {
-		if rootDir.B_content[i].B_inodo == Models.FREE_INODE {
-			rootDir.B_content[i].B_inodo = inodoNumber
+		if int32(rootDir.B_content[i].B_inodo) == Models.FREE_INODE {
+			rootDir.B_content[i].B_inodo = int(inodoNumber)
 			copy(rootDir.B_content[i].B_name[:], filename)
 			break
 		}
