@@ -5,105 +5,87 @@
 
 
 #----------------- 1. MKDISK  -----------------
-#----------------- MKDISK CON ERROR -----------------
 
+
+#----------------- MKDISK CON ERROR -----------------
 # ERROR PARAMETROS
-mkdisk -param=x -size=30 -path=C:/Users/Revy/Desktop/Salidas/Discos/DiscoN.mia
+mkdisk -param=x -size=30 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia
+
 
 #----------------- CREACION DE DISCOS -----------------
-
 # ERROR PARAMETROS
-mkdisk -tamaño=3000 -unit=K -path=C:/Users/Revy/Desktop/Salidas/Discos/DiscoN.mia
-
+mkdisk -tamaño=3000 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia
 # 50M A
-Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia
-
+Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia
 # 50M B
-Mkdisk -unit=k -size=51200 -fit=BF -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco2.mia
-
+Mkdisk -unit=k -size=51200 -fit=BF -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco2.mia
 # 13M C
-mkDisk -size=13 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia
-
+mkDisk -size=13 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
 # 50M D
-mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco4.mia
-
+mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco4.mia
 # 20M E
-mkDisk -size=20 -unit=M -fit=WF -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia
-
+mkDisk -size=20 -unit=M -fit=WF -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia
 # 50M F X
-Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco6.mia
-
+Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco6.mia
 # 50M G X
-Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco7.mia
-
+Mkdisk -size=50 -unit=M -fit=FF -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco7.mia
 # 50M H X
-mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco8.mia
-
+mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco8.mia
 # 50M I X
-mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco9.mia
-
+mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco9.mia
 # 50M J X
-mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco10.mia
+mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco10.mia
 
 
 #-----------------2. RMDISK-----------------
 #ERROR DISCO NO EXISTE
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/DiscoN.mia
-
-# DISCO 6 BORRANDO
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco6.mia
-
-# DISCO 7 BORRANDO
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco7.mia
-
-# DISCO 8 BORRANDO
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco8.mia
-
-# DISCO 9 BORRANDO
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco9.mia
-
-# DISCO 10 BORRANDO
-rmdisk -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco10.mia
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia
+# BORRANDO DISCO
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco6.mia
+# BORRANDO DISCO
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco7.mia
+# BORRANDO DISCO
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco8.mia
+# BORRANDO DISCO
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco9.mia
+# BORRANDO DISCO
+rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco10.mia
 
 
 #-----------------3. FDISK-----------------
 #-----------------CREACION DE PARTICIONES-----------------
 #DISCO 1
 # ERROR RUTA NO ENCONTRADA
-fdisk -type=P -unit=b -name=PartErr -size=10485760 -path=C:/Users/Revy/Desktop/Salidas/Discos/DiscoN.mia -fit=BF 
-
+fdisk -type=P -unit=b -name=PartErr -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia -fit=BF 
 # PRIMARIA 10M
-fdisk -type=P -unit=b -name=Part11 -size=10485760 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -fit=BF
-
+fdisk -type=P -unit=b -name=Part11 -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 # PRIMARIA 10M
-fdisk -type=P -unit=k -name=Part12 -size=10240 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -fit=BF
-
+fdisk -type=P -unit=k -name=Part12 -size=10240 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 # PRIMARIA 10M
-fdisk -type=P -unit=M -name=Part13 -size=10 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -fit=BF
-
+fdisk -type=P -unit=M -name=Part13 -size=10 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 # PRIMARIA 10M
-fdisk -type=P -unit=b -name=Part14 -size=10485760 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -fit=BF
-
+fdisk -type=P -unit=b -name=Part14 -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 #ERR LMITE PARTICION PRIMARIA
-fdisk -type=P -unit=b -name=PartErr -size=10485760 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -fit=BF
+fdisk -type=P -unit=b -name=PartErr -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
+
 
 
 
 # LIBRE DISCO 1: 50-4*10 = 10 -> 20%
 
 
+
+
 #DISCO 3
 # ERROR FALTA ESPACIO
-fdisk -type=P -unit=m -name=PartErr -size=20 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia
-
+fdisk -type=P -unit=m -name=PartErr -size=20 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
 #4M
-fdisk -type=P -unit=m -name=Part31 -size=4 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia
-
+fdisk -type=P -unit=m -name=Part31 -size=4 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
 #4M
-fdisk -type=P -unit=m -name=Part32 -size=4 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia
-
+fdisk -type=P -unit=m -name=Part32 -size=4 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
 #1M
-fdisk -type=P -unit=m -name=Part33 -size=1 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia
+fdisk -type=P -unit=m -name=Part33 -size=1 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
+
 
 
 
@@ -114,22 +96,17 @@ fdisk -type=P -unit=m -name=Part33 -size=1 -path=C:/Users/Revy/Desktop/Salidas/D
 
 #DISCO 5
 # 5MB
-fdisk -type=E -unit=k -name=Part51 -size=5120 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
-
+fdisk -type=E -unit=k -name=Part51 -size=5120 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 # 1MB
-fdisk -type=L -unit=k -name=Part52 -size=1024 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
-
+fdisk -type=L -unit=k -name=Part52 -size=1024 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 # 5MB
-fdisk -type=P -unit=k -name=Part53 -size=5120 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
-
+fdisk -type=P -unit=k -name=Part53 -size=5120 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 # 1MB
-fdisk -type=L -unit=k -name=Part54 -size=1024 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
-
+fdisk -type=L -unit=k -name=Part54 -size=1024 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 # 1MB
-fdisk -type=L -unit=k -name=Part55 -size=1024 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
-
+fdisk -type=L -unit=k -name=Part55 -size=1024 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 # 1MB
-fdisk -type=L -unit=k -name=Part56 -size=1024 -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -fit=BF
+fdisk -type=L -unit=k -name=Part56 -size=1024 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 
 
 
@@ -144,29 +121,29 @@ fdisk -type=L -unit=k -name=Part56 -size=1024 -path=C:/Users/Revy/Desktop/Salida
 #-----------------MONTAR PARTICIONES-----------------
 #DISCO 1
 #681A -> 68 sus ultimos dos digitos del carnet
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -name=Part11
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -name=Part11
 #682A -> 68 sus ultimos dos digitos del carnet
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -name=Part12
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -name=Part12
 #ERROR PARTICION YA MONTADA
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco1.mia -name=Part11
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -name=Part11
 
 
 
 
 #DISCO 3
 #ERROR PARTCION NO EXISTE
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia -name=Part0
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part0
 #681B -> 68 sus ultimos dos digitos del carnet
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia -name=Part31
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part31
 #682B -> 68 sus ultimos dos digitos del carnet
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco3.mia -name=Part32
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part32
 
 
 
 
 #DISCO 5
 #681C -> 68 sus ultimos dos digitos del carnet
-mount -path=C:/Users/Revy/Desktop/Salidas/Discos/Disco5.mia -name=Part53
+mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -name=Part53
 
 
 #-----------------MOUNT-----------------
@@ -179,33 +156,33 @@ mounted
 #-----------------REPORTES PARTE 1-----------------
 #DISCO 1
 #ERROR ID NO ENCONTRADO
-rep -id=A681 -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_rE.jpg -name=mbr
+rep -id=A681 -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE.jpg -name=mbr
 #REPORTE DISK
-rep -id=681A -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r1_disk.jpg -name=disk
+rep -id=681A -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r1_disk.jpg -name=disk
 #REPORTE MBR 
-rep -id=681A -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r2_mbr.jpg -name=mbr
+rep -id=681A -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r2_mbr.jpg -name=mbr
 
 
 
 
 #DISCO 3
 #ERROR ID NO ENCONTRADO
-rep -id=683B -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_rE_mbr.jpg -name=mbr
+rep -id=683B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE_mbr.jpg -name=mbr
 #REPORTE DISK
-rep -id=681B -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r3_disk.jpg -name=disk
+rep -id=681B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r3_disk.jpg -name=disk
 #REPORTE MBR
-rep -id=682B -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r4_disk.jpg -name=mbr
+rep -id=682B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r4_disk.jpg -name=mbr
 
 
 
 
 #DISCO 5
 #ERROR ID NO ENCONTRADO
-rep -id=IDx -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_rE_mbr.jpg -name=mbr
+rep -id=IDx -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE_mbr.jpg -name=mbr
 #REPORTE DISK
-rep -id=681C -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r5_disk.jpg -name=disk
+rep -id=681C -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r5_disk.jpg -name=disk
 #REPORTE MBR
-rep -id=681C -Path=C:/Users/Revy/Desktop/Salidas/Reportes/p1_r6_mbr.jpg -name=mbr
+rep -id=681C -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r6_mbr.jpg -name=mbr
 
 
 
@@ -358,7 +335,7 @@ mkfile -path=/home/archivos/user/docs/Tarea2.txt -size=768
 
 
 # Cambiar la ruta del cont por la del archivo NAME.txt que creo
-mkfile -path=/home/archivos/user/docs/Tarea3.txt -size=10 -cont=C:/Users/Revy/Desktop/Salidas/CONT/NAME.txt
+mkfile -path=/home/archivos/user/docs/Tarea3.txt -size=10 -cont=C:/Users/Revy/Desktop/Calificacion_MIA/CONT/NAME.txt
 
 
 
@@ -381,14 +358,14 @@ cat -file1=/home/archivos/user/docs/Tarea3.txt
 
 
 #------------------------REPORTES PARTE 4----------------
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r1_inode.jpg" -name=inode
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r2_block.jpg" -name=block
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r3_bm_inode.txt" -name=bm_inode
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r4_bm_block.txt" -name=bm_block
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r5_sb.jpg" -name=sb
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r6_file.jpg" -path_file_ls=/home/archivos/user/docs/Tarea2.txt  -name=file
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r7_ls.jpg" -path_file_ls=/home/archivos/user/docs -name=ls
-rep -id=681A -path=C:/Users/Revy/Desktop/Salidas/Reportes/p4_r8_tree.png" -name=tree
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r1_inode.jpg" -name=inode
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r2_block.jpg" -name=block
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r3_bm_inode.txt" -name=bm_inode
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r4_bm_block.txt" -name=bm_block
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r5_sb.jpg" -name=sb
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r6_file.jpg" -path_file_ls=/home/archivos/user/docs/Tarea2.txt  -name=file
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r7_ls.jpg" -path_file_ls=/home/archivos/user/docs -name=ls
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r8_tree.png" -name=tree
 
 
 

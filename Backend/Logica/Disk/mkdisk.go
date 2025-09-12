@@ -22,9 +22,9 @@ func MkDisk(size int64, unit string, fit string, path string) error {
 		return errors.New("tamano debe ser mayor a cero")
 	}
 
-	// Conversión de unidades a bytes (M por defecto)
+	// Conversión de unidades a bytes (K por defecto)
 	if unit == "" {
-		unit = "M"
+		unit = "K"
 	}
 	switch unit {
 	case "K":

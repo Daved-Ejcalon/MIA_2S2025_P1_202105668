@@ -128,31 +128,38 @@ func Fdisk(size int64, unit string, fit string, path string, ptype string, name 
 		return fmt.Errorf("sin espacios disponibles")
 	}
 
-	startPosition := int64(binary.Size(mbr))
-
 	// Manejar particiones lógicas usando EBR Manager
 	if ptype == "L" {
 		ebrMgr := Partition.NewEBRManager(path, extended)
 
+		// Inicializar primer EBR si es necesario
+		if err := ebrMgr.CreateFirstEBR(); err != nil {
+			return fmt.Errorf("error inicializando EBR: %v", err)
+		}
+
 		if err := ebrMgr.AddLogicalPartition(name, size, fitToByte(fit)); err != nil {
-			return fmt.Errorf("error creando partición lógica")
+			return fmt.Errorf("error creando partición lógica: %v", err)
 		}
 
 		return nil
-	} else {
-		// Calcular posición de inicio para particiones primarias/extendidas
-		for _, partition := range mbr.Partitions {
-			if partition.PartStatus != 0 {
-				endPosition := partition.PartStart + partition.PartSize
-				if endPosition > startPosition {
-					startPosition = endPosition
-				}
+	}
+
+	// Calcular posición de inicio para particiones primarias/extendidas
+	startPosition := int64(Models.GetMBRSize())
+	
+	// Encontrar la posición donde termina la última partición
+	for _, partition := range mbr.Partitions {
+		if partition.PartStatus != 0 {
+			endPosition := partition.PartStart + partition.PartSize
+			if endPosition > startPosition {
+				startPosition = endPosition
 			}
 		}
+	}
 
-		if startPosition+size > mbr.MbrSize {
-			return fmt.Errorf("espacio insuficiente")
-		}
+	// Verificar que hay espacio suficiente
+	if startPosition+size > mbr.MbrSize {
+		return fmt.Errorf("espacio insuficiente en el disco")
 	}
 
 	// Crear y escribir nueva partición en el MBR

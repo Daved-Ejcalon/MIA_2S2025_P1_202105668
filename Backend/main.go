@@ -2,6 +2,9 @@ package main
 
 import (
 	"MIA_2S2025_P1_202105668/Logica/Disk"
+	"MIA_2S2025_P1_202105668/Logica/Users"
+	"MIA_2S2025_P1_202105668/Logica/Users/Comandos"
+	"MIA_2S2025_P1_202105668/Logica/Users/Root"
 	"bufio"
 	"fmt"
 	"os"
@@ -76,12 +79,44 @@ func processCommand(input string) error {
 		return Disk.Cat(params)
 	case "showdisk":
 		return Disk.ShowDisk(params)
+	case "login":
+		return Users.Login(params)
+	case "logout":
+		return Users.Logout()
+	case "mkgrp":
+		return Comandos.MkGrp(params)
+	case "rmgrp":
+		return Comandos.RmGrp(params)
+	case "mkusr":
+		return Comandos.MkUsr(params)
+	case "rmusr":
+		return Comandos.RmUsr(params)
+	case "chgrp":
+		return Comandos.ChGrp(params)
+	case "mkdir":
+		return Root.MkDir(params)
+	case "mkfile":
+		return Root.MkFile(params)
 	default:
 		return fmt.Errorf("comando '%s' no reconocido", command)
 	}
 }
 
 func processMkdisk(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"size": true,
+		"unit": true,
+		"fit":  true,
+		"path": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para mkdisk", param)
+		}
+	}
+
 	sizeStr, hasSize := params["size"]
 	if !hasSize {
 		return fmt.Errorf("parametro -size requerido")
@@ -111,6 +146,17 @@ func processMkdisk(params map[string]string) error {
 }
 
 func processRmdisk(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"path": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para rmdisk", param)
+		}
+	}
+
 	path := params["path"]
 	if path == "" {
 		return fmt.Errorf("parametro -path requerido")
@@ -120,6 +166,22 @@ func processRmdisk(params map[string]string) error {
 }
 
 func processFdisk(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"size": true,
+		"unit": true,
+		"fit":  true,
+		"path": true,
+		"type": true,
+		"name": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para fdisk", param)
+		}
+	}
+
 	sizeStr, hasSize := params["size"]
 	if !hasSize {
 		return fmt.Errorf("parametro -size requerido")
@@ -159,6 +221,18 @@ func processFdisk(params map[string]string) error {
 }
 
 func processMount(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"path": true,
+		"name": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para mount", param)
+		}
+	}
+
 	path := params["path"]
 	if path == "" {
 		return fmt.Errorf("parametro -path requerido")
@@ -173,6 +247,19 @@ func processMount(params map[string]string) error {
 }
 
 func processMkfs(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"id":     true,
+		"type":   true,
+		"format": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para mkfs", param)
+		}
+	}
+
 	id := params["id"]
 	if id == "" {
 		return fmt.Errorf("parametro -id requerido")

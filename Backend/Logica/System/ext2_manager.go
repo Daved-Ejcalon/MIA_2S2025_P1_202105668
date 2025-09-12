@@ -279,8 +279,8 @@ func (e *EXT2Manager) createRootDirectory() error {
 
 // createUsersFile crea archivo users.txt con usuario root predeterminado
 func (e *EXT2Manager) createUsersFile() error {
-	// Contenido inicial: grupo root y usuario root
-	usersContent := "1,G,root\n1,U,root,root,123\n"
+	// Contenido inicial usando la funcion de Models
+	usersContent := Models.CreateInitialUsersContent()
 
 	// Crear inodo del archivo users.txt
 	usersInodo := Models.Inodo{
