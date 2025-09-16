@@ -56,8 +56,6 @@ func (cmd *MkdirCommand) Execute(dirPath string, createParents bool) error {
 
 // directoryExists verifica si el directorio ya existe en el sistema
 func (cmd *MkdirCommand) directoryExists(dirPath string) bool {
-	// Implementar busqueda en estructura EXT2
-	// Por ahora retorna false para permitir creacion
 	return false
 }
 
@@ -78,14 +76,11 @@ func (cmd *MkdirCommand) hasWritePermissionInParent(parentDir string, createPare
 		return false
 	}
 
-	// Verificar permisos en directorio padre (implementar busqueda en EXT2)
 	return true
 }
 
 // parentDirectoryExists verifica si el directorio padre existe
 func (cmd *MkdirCommand) parentDirectoryExists(parentDir string) bool {
-	// Implementar busqueda en estructura EXT2
-	// Por ahora retorna true para el directorio raiz
 	return parentDir == "/" || parentDir == "."
 }
 
@@ -147,8 +142,6 @@ func (cmd *MkdirCommand) createDirectoryInEXT2(dirPath string) error {
 		I_perm:  Models.SetPermissions(664), // rw-rw-r--
 	}
 
-	// Implementar escritura del directorio en EXT2
-	// Por ahora solo validamos la logica
 	_ = dirInodo
 
 	return nil

@@ -38,6 +38,32 @@ func Cat(fileArgs map[string]string) error {
 	return nil
 }
 
+// CatWithSession lee archivos usando un mountID específico de la sesión activa
+func CatWithSession(fileArgs map[string]string, mountID string) error {
+	fileList, err := extractFileParameters(fileArgs)
+	if err != nil {
+		return err
+	}
+
+	if len(fileList) == 0 {
+		return fmt.Errorf("archivos requeridos")
+	}
+
+	for _, filePath := range fileList {
+		err := validateFileAccess(filePath)
+		if err != nil {
+			return err
+		}
+
+		err = readAndDisplayFileWithMountID(filePath, mountID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // extractFileParameters procesa parametros file1,2,3, etc
 func extractFileParameters(args map[string]string) ([]string, error) {
 	fileMap := make(map[int]string)
@@ -87,16 +113,53 @@ func validateFileAccess(filePath string) error {
 	return nil
 }
 
-// readAndDisplayFile lee contenido desde EXT2 usando formato mountID:/path
+// readAndDisplayFile lee contenido desde EXT2 usando la primera partición montada
 func readAndDisplayFile(filePath string) error {
-	mountID, actualPath, err := parseFilePath(filePath)
+	// Obtener la primera partición montada disponible
+	mountedPartitions := GetMountedPartitions()
+	if len(mountedPartitions) == 0 {
+		return fmt.Errorf("no hay particiones montadas")
+	}
+
+	// Usar la primera partición montada como predeterminada
+	mountInfo := &mountedPartitions[0]
+
+	// Convierte estructura MountInfo entre paquetes para compatibilidad
+	systemMountInfo := &System.MountInfo{
+		DiskPath:      mountInfo.DiskPath,
+		PartitionName: mountInfo.PartitionName,
+		MountID:       mountInfo.MountID,
+		DiskLetter:    mountInfo.DiskLetter,
+		PartNumber:    mountInfo.PartNumber,
+	}
+	ext2Manager := System.NewEXT2Manager(systemMountInfo)
+	// Inicializa sistema EXT2 cargando metadatos de partición
+	err := ext2Manager.LoadPartitionInfo()
 	if err != nil {
 		return err
 	}
 
+	err = ext2Manager.LoadSuperBlock()
+	if err != nil {
+		return err
+	}
+
+	// Lee contenido del archivo usando el sistema de archivos EXT2
+	fileManager := System.NewEXT2FileManager(ext2Manager)
+	content, err := fileManager.ReadFileContent(filePath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(content)
+	return nil
+}
+
+// readAndDisplayFileWithMountID lee contenido desde EXT2 usando un mountID específico
+func readAndDisplayFileWithMountID(filePath string, mountID string) error {
 	mountInfo := findMountInfoByID(mountID)
 	if mountInfo == nil {
-		return fmt.Errorf("partición no montada")
+		return fmt.Errorf("partición '%s' no está montada", mountID)
 	}
 
 	// Convierte estructura MountInfo entre paquetes para compatibilidad
@@ -109,7 +172,7 @@ func readAndDisplayFile(filePath string) error {
 	}
 	ext2Manager := System.NewEXT2Manager(systemMountInfo)
 	// Inicializa sistema EXT2 cargando metadatos de partición
-	err = ext2Manager.LoadPartitionInfo()
+	err := ext2Manager.LoadPartitionInfo()
 	if err != nil {
 		return err
 	}
@@ -121,7 +184,7 @@ func readAndDisplayFile(filePath string) error {
 
 	// Lee contenido del archivo usando el sistema de archivos EXT2
 	fileManager := System.NewEXT2FileManager(ext2Manager)
-	content, err := fileManager.ReadFileContent(actualPath)
+	content, err := fileManager.ReadFileContent(filePath)
 	if err != nil {
 		return err
 	}
@@ -132,16 +195,8 @@ func readAndDisplayFile(filePath string) error {
 
 // isSessionActive determina si el sistema permite operaciones de archivo
 func isSessionActive() bool {
-	return true
-}
-
-// parseFilePath separa mountID:/path en componentes individuales
-func parseFilePath(filePath string) (string, string, error) {
-	parts := strings.Split(filePath, ":")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("formato inválido, use mountID:/path")
-	}
-	return parts[0], parts[1], nil
+	// Verificar si hay particiones montadas como indicador de sesión activa
+	return len(GetMountedPartitions()) > 0
 }
 
 // findMountInfoByID busca información de montaje por ID de partición

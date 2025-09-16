@@ -78,14 +78,14 @@ func (cmd *MkusrCommand) Execute(username, password, groupName string) error {
 
 // MkUsr - Función exportada para comando mkusr
 func MkUsr(params map[string]string) error {
-	user, hasUser := params["usr"]
+	user, hasUser := params["user"]
 	if !hasUser {
-		return fmt.Errorf("parametro -usr requerido")
+		return fmt.Errorf("parametro -user requerido")
 	}
 
-	password, hasPwd := params["pwd"]
+	password, hasPwd := params["pass"]
 	if !hasPwd {
-		return fmt.Errorf("parametro -pwd requerido")
+		return fmt.Errorf("parametro -pass requerido")
 	}
 
 	grp, hasGrp := params["grp"]

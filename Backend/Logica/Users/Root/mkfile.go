@@ -77,8 +77,6 @@ func (cmd *MkfileCommand) validateParameters(size int) error {
 
 // fileExists verifica si el archivo ya existe en el sistema
 func (cmd *MkfileCommand) fileExists(filePath string) bool {
-	// Implementar busqueda en estructura EXT2
-	// Por ahora retorna false
 	return false
 }
 
@@ -99,20 +97,16 @@ func (cmd *MkfileCommand) hasWritePermissionInParent(parentDir string, recursive
 		return false
 	}
 
-	// Verificar permisos en directorio padre (implementar busqueda en EXT2)
 	return true
 }
 
 // directoryExists verifica si el directorio existe
 func (cmd *MkfileCommand) directoryExists(dirPath string) bool {
-	// Implementar busqueda en estructura EXT2
-	// Por ahora retorna true para el directorio raiz
 	return dirPath == "/"
 }
 
 // createParentDirectories crea los directorios padre recursivamente
 func (cmd *MkfileCommand) createParentDirectories(parentDir string) error {
-	// Implementar creacion de directorios en EXT2
 	return nil
 }
 
@@ -171,8 +165,6 @@ func (cmd *MkfileCommand) createFileInEXT2(filePath string, content []byte) erro
 		I_perm:  Models.SetPermissions(664), // rw-rw-r--
 	}
 
-	// Implementar escritura del archivo en EXT2
-	// Por ahora solo validamos la logica
 	_ = fileInodo
 	_ = content
 

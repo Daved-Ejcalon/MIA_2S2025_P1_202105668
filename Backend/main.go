@@ -2,6 +2,7 @@ package main
 
 import (
 	"MIA_2S2025_P1_202105668/Logica/Disk"
+	"MIA_2S2025_P1_202105668/Logica/Reportes"
 	"MIA_2S2025_P1_202105668/Logica/Users"
 	"MIA_2S2025_P1_202105668/Logica/Users/Comandos"
 	"MIA_2S2025_P1_202105668/Logica/Users/Root"
@@ -45,10 +46,17 @@ func main() {
 			break
 		}
 
-		err := processCommand(input)
-		if err != nil {
-			fmt.Printf("error: %s\n", err.Error())
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("PANIC: %v\n", r)
+				}
+			}()
+			err := processCommand(input)
+			if err != nil {
+				fmt.Printf("error: %s\n", err.Error())
+			}
+		}()
 	}
 }
 
@@ -76,7 +84,7 @@ func processCommand(input string) error {
 	case "mkfs":
 		return processMkfs(params)
 	case "cat":
-		return Disk.Cat(params)
+		return processCat(params)
 	case "showdisk":
 		return Disk.ShowDisk(params)
 	case "login":
@@ -97,6 +105,8 @@ func processCommand(input string) error {
 		return Root.MkDir(params)
 	case "mkfile":
 		return Root.MkFile(params)
+	case "rep":
+		return processRep(params)
 	default:
 		return fmt.Errorf("comando '%s' no reconocido", command)
 	}
@@ -129,7 +139,7 @@ func processMkdisk(params map[string]string) error {
 
 	unit := params["unit"]
 	if unit == "" {
-		unit = "K"
+		unit = "M"
 	}
 
 	fit := params["fit"]
@@ -249,9 +259,8 @@ func processMount(params map[string]string) error {
 func processMkfs(params map[string]string) error {
 	// Validar que solo se usen parámetros permitidos
 	validParams := map[string]bool{
-		"id":     true,
-		"type":   true,
-		"format": true,
+		"id":   true,
+		"type": true,
 	}
 
 	for param := range params {
@@ -265,17 +274,7 @@ func processMkfs(params map[string]string) error {
 		return fmt.Errorf("parametro -id requerido")
 	}
 
-	fsType := params["type"]
-	if fsType == "" {
-		fsType = "ext2"
-	}
-
-	formatType := params["format"]
-	if formatType == "" {
-		formatType = "full"
-	}
-
-	return Disk.Mkfs(id, fsType, formatType)
+	return Disk.Mkfs(id)
 }
 
 func parseParameters(args []string) map[string]string {
@@ -298,4 +297,60 @@ func parseParameters(args []string) map[string]string {
 	}
 
 	return params
+}
+
+func processCat(params map[string]string) error {
+	// Verificar sesión activa
+	session := Users.GetCurrentSession()
+	if session == nil || !session.IsActive {
+		return fmt.Errorf("ERROR: Debe iniciar sesión para usar este comando")
+	}
+
+	// Pasar la sesión al comando Cat
+	return Disk.CatWithSession(params, session.MountID)
+}
+
+func processRep(params map[string]string) error {
+	// Validar que solo se usen parámetros permitidos
+	validParams := map[string]bool{
+		"name":         true,
+		"path":         true,
+		"id":           true,
+		"path_file_ls": true,
+	}
+
+	for param := range params {
+		if !validParams[param] {
+			return fmt.Errorf("parametro -%s no es valido para rep", param)
+		}
+	}
+
+	// Validar parámetros obligatorios
+	name := params["name"]
+	if name == "" {
+		return fmt.Errorf("parametro -name requerido")
+	}
+
+	path := params["path"]
+	if path == "" {
+		return fmt.Errorf("parametro -path requerido")
+	}
+
+	id := params["id"]
+	if id == "" {
+		return fmt.Errorf("parametro -id requerido")
+	}
+
+	// Validar valores válidos para name
+	validNames := map[string]bool{
+		"mbr":  true,
+		"disk": true,
+	}
+
+	if !validNames[name] {
+		return fmt.Errorf("valor de -name debe ser: mbr o disk")
+	}
+
+	// Llamar al generador de reportes correspondiente
+	return Reportes.GenerateReport(name, id, path, params["path_file_ls"])
 }

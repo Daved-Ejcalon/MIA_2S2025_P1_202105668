@@ -60,9 +60,9 @@ func (cmd *ChgrpCommand) Execute(username, newGroupName string) error {
 
 // ChGrp - Función exportada para comando chgrp
 func ChGrp(params map[string]string) error {
-	usr, hasUsr := params["usr"]
+	usr, hasUsr := params["user"]
 	if !hasUsr {
-		return fmt.Errorf("parametro -usr requerido")
+		return fmt.Errorf("parametro -user requerido")
 	}
 
 	grp, hasGrp := params["grp"]

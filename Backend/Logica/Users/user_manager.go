@@ -4,6 +4,7 @@ import (
 	"MIA_2S2025_P1_202105668/Models"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -44,7 +45,7 @@ func (um *UserManager) ReadUsersFile() ([]*Models.UserRecord, error) {
 		return nil, err
 	}
 
-	blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[0]*Models.BLOQUE_SIZE)
+	blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[0]*int32(Models.BLOQUE_SIZE))
 	_, err = file.Seek(blockPos, 0)
 	if err != nil {
 		return nil, err
@@ -56,7 +57,15 @@ func (um *UserManager) ReadUsersFile() ([]*Models.UserRecord, error) {
 		return nil, err
 	}
 
-	content := string(contentBlock.GetContent()[:usersInodo.I_s])
+	// Limitar la lectura a la capacidad máxima del bloque (64 bytes)
+	maxSize := int32(len(contentBlock.GetContent()))
+	actualSize := usersInodo.I_s
+	if actualSize > maxSize {
+		actualSize = maxSize
+	}
+	content := string(contentBlock.GetContent()[:actualSize])
+	fmt.Printf("DEBUG: Content read from users.txt: '%s'\n", content)
+	fmt.Printf("DEBUG: Content length: %d\n", len(content))
 	return um.parseUsersContent(content)
 }
 
@@ -64,17 +73,20 @@ func (um *UserManager) ReadUsersFile() ([]*Models.UserRecord, error) {
 func (um *UserManager) parseUsersContent(content string) ([]*Models.UserRecord, error) {
 	var records []*Models.UserRecord
 	lines := strings.Split(strings.TrimSpace(content), "\n")
-
-	for _, line := range lines {
+	
+	fmt.Printf("DEBUG: Lines found: %d\n", len(lines))
+	for i, line := range lines {
+		fmt.Printf("DEBUG: Line %d: '%s'\n", i, line)
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
 		record, _ := Models.ParseUserRecord(line)
-
+		fmt.Printf("DEBUG: Parsed record: %+v\n", record)
 		records = append(records, record)
 	}
-
+	
+	fmt.Printf("DEBUG: Total records parsed: %d\n", len(records))
 	return records, nil
 }
 
@@ -87,6 +99,11 @@ func (um *UserManager) WriteUsersFile(records []*Models.UserRecord) error {
 	}
 
 	contentStr := content.String()
+
+	// Limitar el contenido a la capacidad máxima del bloque (64 bytes)
+	if len(contentStr) > 64 {
+		return fmt.Errorf("contenido del archivo users.txt excede la capacidad máxima de 64 bytes (%d bytes)", len(contentStr))
+	}
 
 	file, err := os.OpenFile(um.diskPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -124,7 +141,7 @@ func (um *UserManager) WriteUsersFile(records []*Models.UserRecord) error {
 		return err
 	}
 
-	blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[0]*Models.BLOQUE_SIZE)
+	blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[0]*int32(Models.BLOQUE_SIZE))
 	_, err = file.Seek(blockPos, 0)
 	if err != nil {
 		return err

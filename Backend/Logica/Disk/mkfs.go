@@ -3,11 +3,10 @@ package Disk
 import (
 	"MIA_2S2025_P1_202105668/Logica/System"
 	"fmt"
-	"strings"
 )
 
 // Mkfs formatea una partición montada con sistema de archivos EXT2
-func Mkfs(mountID string, fsType string, formatType string) error {
+func Mkfs(mountID string) error {
 	// Validar que el ID de montaje esté presente
 	if mountID == "" {
 		return fmt.Errorf("parametro -id requerido")
@@ -17,23 +16,6 @@ func Mkfs(mountID string, fsType string, formatType string) error {
 	mountInfo, err := findMountedPartitionByID(mountID)
 	if err != nil {
 		return fmt.Errorf("particion no montada")
-	}
-
-	// Validar tipo de formateo (Full por defecto)
-	if formatType == "" {
-		formatType = "Full"
-	}
-	formatType = strings.ToUpper(formatType)
-	if formatType != "FULL" {
-		return fmt.Errorf("tipo de formateo invalido")
-	}
-
-	// Validar sistema de archivos (2fs por defecto = EXT2)
-	if fsType == "" {
-		fsType = "2fs"
-	}
-	if fsType != "2fs" && fsType != "3fs" {
-		return fmt.Errorf("sistema de archivos no soportado")
 	}
 
 	// Crear estructura de montaje para el sistema de archivos
@@ -50,7 +32,7 @@ func Mkfs(mountID string, fsType string, formatType string) error {
 
 	err = ext2Manager.FormatPartition()
 	if err != nil {
-		return fmt.Errorf("fallo el formateo")
+		return fmt.Errorf("fallo el formateo: %v", err)
 	}
 
 	return nil

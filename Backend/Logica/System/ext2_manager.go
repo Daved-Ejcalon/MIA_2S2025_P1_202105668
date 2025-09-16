@@ -366,8 +366,8 @@ func (e *EXT2Manager) addFileToRootDirectory(filename string, inodoNumber int32)
 
 	// Buscar primera entrada libre (indices 0,1 son . y ..)
 	for i := 2; i < len(rootDir.B_content); i++ {
-		if int32(rootDir.B_content[i].B_inodo) == Models.FREE_INODE {
-			rootDir.B_content[i].B_inodo = int(inodoNumber)
+		if rootDir.B_content[i].B_inodo == Models.FREE_INODE {
+			rootDir.B_content[i].B_inodo = inodoNumber
 			copy(rootDir.B_content[i].B_name[:], filename)
 			break
 		}

@@ -170,12 +170,21 @@ func ShowMountedPartitions() {
 // GetMountInfoByID obtiene información de montaje por ID
 func GetMountInfoByID(mountID string) (*MountInfo, error) {
 	initMountSystem()
-	
+
 	for _, mount := range mountedPartitions {
 		if mount.MountID == mountID {
 			return &mount, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("partición con ID '%s' no está montada", mountID)
+}
+
+// GetMountedPartitionByID obtiene información de montaje por ID (para reportes)
+func GetMountedPartitionByID(mountID string) *MountInfo {
+	mountInfo, err := GetMountInfoByID(mountID)
+	if err != nil {
+		return nil
+	}
+	return mountInfo
 }

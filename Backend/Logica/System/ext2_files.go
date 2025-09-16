@@ -125,10 +125,10 @@ func (f *EXT2FileManager) findInDirectory(dirInodo *Models.Inodo, filename strin
 		}
 
 		for _, entry := range dirBlock.B_content {
-			if int32(entry.B_inodo) != Models.FREE_INODE {
+			if entry.B_inodo != Models.FREE_INODE {
 				entryName := strings.TrimRight(string(entry.B_name[:]), "\x00")
 				if entryName == filename {
-					return int32(entry.B_inodo), nil
+					return entry.B_inodo, nil
 				}
 			}
 		}
@@ -523,8 +523,8 @@ func (f *EXT2FileManager) addEntryToDirectory(dirInodeNum int32, filename string
 		}
 
 		for j := 0; j < len(dirBlock.B_content); j++ {
-			if int32(dirBlock.B_content[j].B_inodo) == Models.FREE_INODE {
-				dirBlock.B_content[j].B_inodo = int(fileInodeNum)
+			if dirBlock.B_content[j].B_inodo == Models.FREE_INODE {
+				dirBlock.B_content[j].B_inodo = int32(fileInodeNum)
 				copy(dirBlock.B_content[j].B_name[:], filename)
 				return f.writeDirectoryBlock(dirInodo.I_block[i], dirBlock)
 			}

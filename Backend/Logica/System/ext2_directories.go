@@ -124,17 +124,17 @@ func (d *EXT2DirectoryManager) ListDirectory(dirPath string) ([]DirectoryEntry, 
 
 		// Procesar cada entrada válida del bloque
 		for _, entry := range dirBlock.B_content {
-			if int32(entry.B_inodo) != Models.FREE_INODE {
+			if entry.B_inodo != Models.FREE_INODE {
 				entryName := strings.TrimRight(string(entry.B_name[:]), "\x00")
 				if entryName != "" {
-					entryInodo, err := d.fileManager.readInode(int32(entry.B_inodo))
+					entryInodo, err := d.fileManager.readInode(entry.B_inodo)
 					if err != nil {
 						continue
 					}
 
 					dirEntry := DirectoryEntry{
 						Name:        entryName,
-						InodeNumber: int32(entry.B_inodo),
+						InodeNumber: entry.B_inodo,
 						Type:        entryInodo.I_type,
 						Size:        entryInodo.I_s,
 						Permissions: Models.GetPermissions(entryInodo.I_perm),
@@ -183,17 +183,17 @@ func (d *EXT2DirectoryManager) createNewDirectory(parentInodeNum int32, dirName 
 	dirBlock := Models.BloqueCarpeta{}
 
 	for i := range dirBlock.B_content {
-		dirBlock.B_content[i].B_inodo = int(Models.FREE_INODE)
+		dirBlock.B_content[i].B_inodo = int32(Models.FREE_INODE)
 		for j := range dirBlock.B_content[i].B_name {
 			dirBlock.B_content[i].B_name[j] = 0
 		}
 	}
 
 	// Crear entradas estándar: . (directorio actual) y .. (directorio padre)
-	dirBlock.B_content[0].B_inodo = int(newInodeNum)
+	dirBlock.B_content[0].B_inodo = int32(newInodeNum)
 	copy(dirBlock.B_content[0].B_name[:], ".")
 
-	dirBlock.B_content[1].B_inodo = int(parentInodeNum)
+	dirBlock.B_content[1].B_inodo = int32(parentInodeNum)
 	copy(dirBlock.B_content[1].B_name[:], "..")
 
 	err = d.fileManager.writeDirectoryBlock(newBlockNum, &dirBlock)
@@ -236,7 +236,7 @@ func (d *EXT2DirectoryManager) isDirectoryEmpty(dirInodo *Models.Inodo) (bool, e
 		}
 
 		for j, entry := range dirBlock.B_content {
-			if int32(entry.B_inodo) != Models.FREE_INODE {
+			if entry.B_inodo != Models.FREE_INODE {
 				entryName := strings.TrimRight(string(entry.B_name[:]), "\x00")
 				if j > 1 && entryName != "." && entryName != ".." && entryName != "" {
 					return false, nil
@@ -287,10 +287,10 @@ func (d *EXT2DirectoryManager) removeEntryFromParent(dirPath string, inodeNum in
 		}
 
 		for j := 0; j < len(dirBlock.B_content); j++ {
-			if int32(dirBlock.B_content[j].B_inodo) == inodeNum {
+			if dirBlock.B_content[j].B_inodo == inodeNum {
 				entryName := strings.TrimRight(string(dirBlock.B_content[j].B_name[:]), "\x00")
 				if entryName == dirName {
-					dirBlock.B_content[j].B_inodo = int(Models.FREE_INODE)
+					dirBlock.B_content[j].B_inodo = int32(Models.FREE_INODE)
 					for k := range dirBlock.B_content[j].B_name {
 						dirBlock.B_content[j].B_name[k] = 0
 					}

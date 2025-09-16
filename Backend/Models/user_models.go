@@ -46,5 +46,5 @@ func ParseUserRecord(line string) (*UserRecord, error) {
 
 // CreateInitialUsersContent genera el contenido inicial de users.txt
 func CreateInitialUsersContent() string {
-	return "1,G,root\n1,U,root,root,123\n"
+	return "1,G,root\n2,U,root,root,123\n"
 }

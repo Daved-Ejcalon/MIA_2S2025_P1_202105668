@@ -123,14 +123,14 @@ func GetCurrentSession() *Session {
 
 // Login - Función exportada para comando login
 func Login(params map[string]string) error {
-	username, hasUsername := params["usr"]
+	username, hasUsername := params["user"]
 	if !hasUsername {
-		return fmt.Errorf("parametro -usr requerido")
+		return fmt.Errorf("parametro -user requerido")
 	}
 
-	password, hasPassword := params["pwd"]
+	password, hasPassword := params["pass"]
 	if !hasPassword {
-		return fmt.Errorf("parametro -pwd requerido")
+		return fmt.Errorf("parametro -pass requerido")
 	}
 
 	mountID, hasID := params["id"]
@@ -223,8 +223,8 @@ func GetPartitionAndSuperBlock(mountInfo *Disk.MountInfo) (*Models.Partition, *M
 		return nil, nil, fmt.Errorf("partición no encontrada")
 	}
 
-	// Leer SuperBloque desde la partición
-	superBloquePos := targetPartition.PartStart + int64(Models.SUPERBLOQUE_SIZE)
+	// Leer SuperBloque desde el inicio de la partición
+	superBloquePos := targetPartition.PartStart
 	file.Seek(superBloquePos, 0)
 	
 	var superBloque Models.SuperBloque

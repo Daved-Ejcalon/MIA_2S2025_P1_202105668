@@ -45,21 +45,21 @@ type BloqueCarpeta struct {
 
 type B_content struct {
 	B_name  [12]byte
-	B_inodo int
+	B_inodo int32
 }
 
 type BloqueArchivos struct {
-	b_content [64]byte
+	B_content [64]byte
 }
 
 // GetContent returns a slice of the content bytes
 func (ba *BloqueArchivos) GetContent() []byte {
-	return ba.b_content[:]
+	return ba.B_content[:]
 }
 
 // SetContent copies the provided content into the content array
 func (ba *BloqueArchivos) SetContent(content []byte) {
-	copy(ba.b_content[:], content)
+	copy(ba.B_content[:], content)
 }
 
 type BloqueContenido struct {
@@ -158,18 +158,18 @@ func NewRootDirectory() BloqueCarpeta {
 
 	// Inicializar todas las entradas como vacias
 	for i := range rootDir.B_content {
-		rootDir.B_content[i].B_inodo = FREE_INODE
+		rootDir.B_content[i].B_inodo = int32(FREE_INODE)
 		for j := range rootDir.B_content[i].B_name {
 			rootDir.B_content[i].B_name[j] = 0
 		}
 	}
 
 	// Crear entrada "." (directorio actual)
-	rootDir.B_content[0].B_inodo = ROOT_INODE
+	rootDir.B_content[0].B_inodo = int32(ROOT_INODE)
 	copy(rootDir.B_content[0].B_name[:], ".")
 
 	// Crear entrada ".." (directorio padre)
-	rootDir.B_content[1].B_inodo = ROOT_INODE
+	rootDir.B_content[1].B_inodo = int32(ROOT_INODE)
 	copy(rootDir.B_content[1].B_name[:], "..")
 
 	return rootDir

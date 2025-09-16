@@ -95,6 +95,5 @@ func MkGrp(params map[string]string) error {
 		return err
 	}
 
-	fmt.Printf("Grupo '%s' creado exitosamente\n", name)
 	return nil
 }

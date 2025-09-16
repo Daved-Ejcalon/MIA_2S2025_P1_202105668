@@ -55,9 +55,9 @@ func (cmd *RmusrCommand) Execute(username string) error {
 
 // RmUsr - Función exportada para comando rmusr
 func RmUsr(params map[string]string) error {
-	usr, hasUsr := params["usr"]
+	usr, hasUsr := params["user"]
 	if !hasUsr {
-		return fmt.Errorf("parametro -usr requerido")
+		return fmt.Errorf("parametro -user requerido")
 	}
 
 	// Verificar sesión activa
