@@ -26,10 +26,23 @@ type EXT2Manager struct {
 }
 
 func NewEXT2Manager(mountInfo *MountInfo) *EXT2Manager {
-	return &EXT2Manager{
+	manager := &EXT2Manager{
 		mountInfo: mountInfo,
 		diskPath:  mountInfo.DiskPath,
 	}
+
+	// Cargar información de la partición y superbloque
+	err := manager.LoadPartitionInfo()
+	if err != nil {
+		return nil
+	}
+
+	err = manager.LoadSuperBlock()
+	if err != nil {
+		return nil
+	}
+
+	return manager
 }
 
 // FormatPartition inicializa una particion con sistema de archivos EXT2 completo
@@ -297,7 +310,7 @@ func (e *EXT2Manager) createUsersFile() error {
 	for i := range usersInodo.I_block {
 		usersInodo.I_block[i] = Models.FREE_BLOCK
 	}
-	usersInodo.I_block[0] = 1
+	usersInodo.I_block[0] = 100  // Usar bloque alto para evitar conflictos
 
 	file, err := os.OpenFile(e.diskPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -321,7 +334,7 @@ func (e *EXT2Manager) createUsersFile() error {
 		return err
 	}
 
-	blockPos := e.partitionInfo.PartStart + int64(e.superBloque.S_block_start) + int64(1*Models.BLOQUE_SIZE)
+	blockPos := e.partitionInfo.PartStart + int64(e.superBloque.S_block_start) + int64(100*Models.BLOQUE_SIZE)
 	_, err = file.Seek(blockPos, 0)
 	if err != nil {
 		return err

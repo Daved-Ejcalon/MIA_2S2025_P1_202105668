@@ -13,8 +13,17 @@ type EXT2DirectoryManager struct {
 }
 
 func NewEXT2DirectoryManager(manager *EXT2Manager) *EXT2DirectoryManager {
+	if manager == nil {
+		return nil
+	}
+
+	fileManager := NewEXT2FileManager(manager)
+	if fileManager == nil {
+		return nil
+	}
+
 	return &EXT2DirectoryManager{
-		fileManager: NewEXT2FileManager(manager),
+		fileManager: fileManager,
 		manager:     manager,
 	}
 }
@@ -38,6 +47,8 @@ func (d *EXT2DirectoryManager) CreateDirectory(dirPath string, uid int32, gid in
 	if parentInodo.I_type != Models.INODO_DIRECTORIO {
 		return errors.New("el padre no es un directorio")
 	}
+
+	// Los permisos se verifican en la capa de comando (mkdir.go) para evitar ciclos de importación
 
 	// Verificar que el directorio no existe ya
 	_, err = d.fileManager.findFileInode(dirPath)
@@ -140,6 +151,9 @@ func (d *EXT2DirectoryManager) ListDirectory(dirPath string) ([]DirectoryEntry, 
 						Permissions: Models.GetPermissions(entryInodo.I_perm),
 						UID:         entryInodo.I_uid,
 						GID:         entryInodo.I_gid,
+						ATime:       entryInodo.I_atime,
+						CTime:       entryInodo.I_ctime,
+						MTime:       entryInodo.I_mtime,
 					}
 
 					entries = append(entries, dirEntry)
@@ -392,6 +406,9 @@ type DirectoryEntry struct {
 	Permissions int32
 	UID         int32
 	GID         int32
+	ATime       float64 // Access time
+	CTime       float64 // Creation time
+	MTime       float64 // Modification time
 }
 
 // DirectoryInfo contiene información completa de un directorio

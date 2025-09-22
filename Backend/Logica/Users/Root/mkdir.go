@@ -4,7 +4,6 @@ import (
 	"MIA_2S2025_P1_202105668/Logica/Disk"
 	"MIA_2S2025_P1_202105668/Logica/System"
 	"MIA_2S2025_P1_202105668/Logica/Users"
-	"MIA_2S2025_P1_202105668/Models"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -130,21 +129,39 @@ func (cmd *MkdirCommand) splitPath(path string) []string {
 func (cmd *MkdirCommand) createDirectoryInEXT2(dirPath string) error {
 	session := cmd.loginManager.GetCurrentSession()
 
-	// Crear inodo del directorio con permisos 664
-	dirInodo := Models.Inodo{
-		I_uid:   int32(session.UserID),
-		I_gid:   int32(session.GroupID),
-		I_s:     0, // Directorios no tienen tamaño de contenido
-		I_atime: float64(Models.GetCurrentUnixTime()),
-		I_ctime: float64(Models.GetCurrentUnixTime()),
-		I_mtime: float64(Models.GetCurrentUnixTime()),
-		I_type:  Models.INODO_DIRECTORIO,
-		I_perm:  Models.SetPermissions(664), // rw-rw-r--
+	// Obtener EXT2Manager para la sesión activa
+	mountInfo, err := Disk.GetMountInfoByID(session.MountID)
+	if err != nil {
+		return fmt.Errorf("partición no encontrada: %v", err)
 	}
 
-	_ = dirInodo
+	// Convertir MountInfo de Disk a System
+	systemMountInfo := &System.MountInfo{
+		DiskPath:      mountInfo.DiskPath,
+		PartitionName: mountInfo.PartitionName,
+		MountID:       mountInfo.MountID,
+		DiskLetter:    mountInfo.DiskLetter,
+		PartNumber:    mountInfo.PartNumber,
+	}
 
-	return nil
+	ext2Manager := System.NewEXT2Manager(systemMountInfo)
+	if ext2Manager == nil {
+		return fmt.Errorf("ERROR: No se pudo crear EXT2Manager")
+	}
+
+	dirManager := System.NewEXT2DirectoryManager(ext2Manager)
+	if dirManager == nil {
+		return fmt.Errorf("ERROR: No se pudo crear EXT2DirectoryManager")
+	}
+
+	// Determinar permisos: 777 para root, 664 para usuarios regulares
+	permissions := 664
+	if cmd.permissionManager.IsRoot() {
+		permissions = 777
+	}
+
+	// Crear el directorio usando EXT2DirectoryManager
+	return dirManager.CreateDirectory(dirPath, int32(session.UserID), int32(session.GroupID), int32(permissions))
 }
 
 // MkDir - Función exportada para comando mkdir
@@ -159,7 +176,10 @@ func MkDir(params map[string]string) error {
 
 	// Verificar sesión activa
 	session := Users.GetCurrentSession()
-	if session == nil || !session.IsActive {
+	if session == nil {
+		return fmt.Errorf("ERROR: No hay sesión inicializada. Debe hacer login primero")
+	}
+	if !session.IsActive {
 		return fmt.Errorf("ERROR: Debe iniciar sesión para usar este comando")
 	}
 
@@ -184,10 +204,23 @@ func MkDir(params map[string]string) error {
 	}
 
 	ext2Manager := System.NewEXT2Manager(systemMountInfo)
+	if ext2Manager == nil {
+		return fmt.Errorf("ERROR: No se pudo crear EXT2Manager")
+	}
+
 	dirManager := System.NewEXT2DirectoryManager(ext2Manager)
+	if dirManager == nil {
+		return fmt.Errorf("ERROR: No se pudo crear EXT2DirectoryManager")
+	}
+
+	// Determinar permisos: 777 para root, 664 para usuarios regulares
+	permissions := 664
+	if session.UserID == 1 { // root
+		permissions = 777
+	}
 
 	// Usar la lógica existente del EXT2DirectoryManager
-	err = dirManager.CreateDirectory(path, int32(session.UserID), int32(session.GroupID), 664)
+	err = dirManager.CreateDirectory(path, int32(session.UserID), int32(session.GroupID), int32(permissions))
 	if err != nil {
 		// Si es un error porque el directorio padre no existe y tenemos -p, crear recursivamente
 		if strings.Contains(err.Error(), "directorio padre no existe") && createParents {
@@ -202,7 +235,7 @@ func MkDir(params map[string]string) error {
 				currentPath = currentPath + "/" + part
 				
 				// Intentar crear cada directorio en la jerarquía
-				err = dirManager.CreateDirectory(currentPath, int32(session.UserID), int32(session.GroupID), 664)
+				err = dirManager.CreateDirectory(currentPath, int32(session.UserID), int32(session.GroupID), int32(permissions))
 				if err != nil && !strings.Contains(err.Error(), "ya existe") {
 					return fmt.Errorf("error creando directorio '%s': %v", currentPath, err)
 				}

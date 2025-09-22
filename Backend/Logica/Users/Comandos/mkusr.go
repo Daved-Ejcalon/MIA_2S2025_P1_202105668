@@ -104,6 +104,17 @@ func MkUsr(params map[string]string) error {
 		return fmt.Errorf("ERROR: Solo el usuario root puede crear usuarios")
 	}
 
+	// Validar longitud de parametros (max 10 caracteres)
+	if len(user) > 10 {
+		return fmt.Errorf("ERROR: El nombre de usuario no puede exceder 10 caracteres")
+	}
+	if len(password) > 10 {
+		return fmt.Errorf("ERROR: La contraseña no puede exceder 10 caracteres")
+	}
+	if len(grp) > 10 {
+		return fmt.Errorf("ERROR: El nombre del grupo no puede exceder 10 caracteres")
+	}
+
 	// Obtener UserManager para la sesión activa
 	mountInfo, err := Disk.GetMountInfoByID(session.MountID)
 	if err != nil {
@@ -123,6 +134,6 @@ func MkUsr(params map[string]string) error {
 		return err
 	}
 
-	fmt.Printf("Usuario '%s' creado exitosamente en el grupo '%s'\n", user, grp)
+	fmt.Printf("User: \"%s\" creado en el grupo \"%s\"\n", user, grp)
 	return nil
 }

@@ -94,9 +94,28 @@ func ChGrp(params map[string]string) error {
 
 	userManager := Users.NewUserManager(mountInfo.DiskPath, partitionInfo, superBloque)
 
-	// Usar la lógica existente - crear el command y ejecutar
-	cmd := NewChgrpCommand(Users.NewLoginManager(), userManager)
-	err = cmd.Execute(usr, grp)
+	// Leer registros actuales
+	records, err := userManager.ReadUsersFile()
+	if err != nil {
+		return err
+	}
+
+	// Buscar el usuario a modificar (case sensitive)
+	user := userManager.FindUserByName(records, usr)
+	if user == nil {
+		return fmt.Errorf("ERROR: El usuario '%s' no existe", usr)
+	}
+
+	// Verificar que el nuevo grupo exista (case sensitive)
+	if userManager.FindGroupByName(records, grp) == nil {
+		return fmt.Errorf("ERROR: El grupo '%s' no existe", grp)
+	}
+
+	// Cambiar el grupo del usuario
+	user.Group = grp
+
+	// Guardar cambios
+	err = userManager.WriteUsersFile(records)
 	if err != nil {
 		return err
 	}

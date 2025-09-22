@@ -178,8 +178,13 @@ func MkFile(params map[string]string) error {
 		return fmt.Errorf("parametro -path requerido")
 	}
 
-	_, hasR := params["r"]
+	rValue, hasR := params["r"]
 	recursive := hasR
+
+	// Validar que -r no reciba valor
+	if hasR && rValue != "" {
+		return fmt.Errorf("ERROR: El parámetro -r no debe recibir ningún valor")
+	}
 
 	sizeStr := params["size"]
 	size := 0
@@ -188,6 +193,10 @@ func MkFile(params map[string]string) error {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil {
 			return fmt.Errorf("size invalido: %v", err)
+		}
+		// Validar que size no sea negativo
+		if size < 0 {
+			return fmt.Errorf("ERROR: El tamaño no puede ser negativo")
 		}
 	}
 
@@ -243,6 +252,13 @@ func MkFile(params map[string]string) error {
 			content.WriteString(fmt.Sprintf("%d", i%10))
 		}
 		fileContent = content.String()
+	}
+
+	// Verificar si el archivo ya existe
+	_, err = fileManager.ReadFileContent(path)
+	if err == nil {
+		// El archivo existe, preguntar si sobreescribir
+		fmt.Printf("El archivo '%s' ya existe. ¿Desea sobreescribirlo? (Esta implementación procederá automáticamente)\n", path)
 	}
 
 	// Crear directorios padre si es necesario y se especifica -r

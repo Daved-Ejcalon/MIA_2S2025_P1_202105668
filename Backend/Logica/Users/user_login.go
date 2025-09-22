@@ -53,7 +53,7 @@ func (lm *LoginManager) ValidateMountID(mountID string) bool {
 func (lm *LoginManager) Login(username, password, mountID string, userManager *UserManager) error {
 	// Verificar si ya hay una sesion activa
 	if lm.IsLoggedIn() {
-		return errors.New("ERROR: Ya hay una sesión activa. Debe hacer LOGOUT antes de iniciar otra sesión")
+		return errors.New("Error: Sesión activa")
 	}
 
 	// Validar que el mount ID exista
@@ -140,7 +140,7 @@ func Login(params map[string]string) error {
 
 	// Verificar si ya hay una sesión activa
 	if loginManager.IsLoggedIn() {
-		return errors.New("ERROR: Ya hay una sesión activa. Debe hacer LOGOUT antes de iniciar otra sesión")
+		return errors.New("Error: Sesión activa")
 	}
 
 	// Verificar que el mount ID exista
@@ -190,7 +190,7 @@ func Login(params map[string]string) error {
 		MountID:  mountID,
 	}
 
-	fmt.Printf("Login exitoso para usuario: %s\n", username)
+	fmt.Printf("Login %s: id=%s\n", username, mountID)
 	return nil
 }
 

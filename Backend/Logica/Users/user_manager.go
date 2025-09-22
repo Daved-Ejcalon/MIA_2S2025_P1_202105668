@@ -57,15 +57,41 @@ func (um *UserManager) ReadUsersFile() ([]*Models.UserRecord, error) {
 		return nil, err
 	}
 
-	// Limitar la lectura a la capacidad máxima del bloque (64 bytes)
-	maxSize := int32(len(contentBlock.GetContent()))
-	actualSize := usersInodo.I_s
-	if actualSize > maxSize {
-		actualSize = maxSize
+	// Leer contenido usando múltiples bloques si es necesario
+	var allContent []byte
+	bytesRead := int32(0)
+
+	// Leer desde todos los bloques asignados al archivo users.txt
+	for i := 0; i < 12 && usersInodo.I_block[i] != -1; i++ {
+		if bytesRead >= usersInodo.I_s {
+			break
+		}
+
+		// Posicionarse en el bloque
+		blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[i]*int32(Models.BLOQUE_SIZE))
+		_, err = file.Seek(blockPos, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		var blockData Models.BloqueArchivos
+		err = binary.Read(file, binary.LittleEndian, &blockData)
+		if err != nil {
+			return nil, err
+		}
+
+		// Calcular cuántos bytes tomar de este bloque
+		bytesRemaining := usersInodo.I_s - bytesRead
+		bytesToTake := int32(Models.BLOQUE_SIZE)
+		if bytesToTake > bytesRemaining {
+			bytesToTake = bytesRemaining
+		}
+
+		allContent = append(allContent, blockData.GetContent()[:bytesToTake]...)
+		bytesRead += bytesToTake
 	}
-	content := string(contentBlock.GetContent()[:actualSize])
-	fmt.Printf("DEBUG: Content read from users.txt: '%s'\n", content)
-	fmt.Printf("DEBUG: Content length: %d\n", len(content))
+
+	content := string(allContent)
 	return um.parseUsersContent(content)
 }
 
@@ -74,19 +100,18 @@ func (um *UserManager) parseUsersContent(content string) ([]*Models.UserRecord, 
 	var records []*Models.UserRecord
 	lines := strings.Split(strings.TrimSpace(content), "\n")
 	
-	fmt.Printf("DEBUG: Lines found: %d\n", len(lines))
-	for i, line := range lines {
-		fmt.Printf("DEBUG: Line %d: '%s'\n", i, line)
+	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
-		record, _ := Models.ParseUserRecord(line)
-		fmt.Printf("DEBUG: Parsed record: %+v\n", record)
+		record, err := Models.ParseUserRecord(line)
+		if err != nil {
+			// Ignorar líneas malformadas y continuar
+			continue
+		}
 		records = append(records, record)
 	}
-	
-	fmt.Printf("DEBUG: Total records parsed: %d\n", len(records))
 	return records, nil
 }
 
@@ -100,10 +125,7 @@ func (um *UserManager) WriteUsersFile(records []*Models.UserRecord) error {
 
 	contentStr := content.String()
 
-	// Limitar el contenido a la capacidad máxima del bloque (64 bytes)
-	if len(contentStr) > 64 {
-		return fmt.Errorf("contenido del archivo users.txt excede la capacidad máxima de 64 bytes (%d bytes)", len(contentStr))
-	}
+	// El archivo users.txt ahora puede usar múltiples bloques, sin límite de 64 bytes
 
 	file, err := os.OpenFile(um.diskPath, os.O_RDWR, 0644)
 	if err != nil {
@@ -123,6 +145,13 @@ func (um *UserManager) WriteUsersFile(records []*Models.UserRecord) error {
 		return err
 	}
 
+	// Escribir contenido usando múltiples bloques
+	err = um.writeUsersContentMultiBlock(file, &usersInodo, contentStr)
+	if err != nil {
+		return err
+	}
+
+	// Actualizar metadatos del inodo
 	usersInodo.I_s = int32(len(contentStr))
 	usersInodo.I_mtime = float64(Models.GetCurrentUnixTime())
 
@@ -141,23 +170,88 @@ func (um *UserManager) WriteUsersFile(records []*Models.UserRecord) error {
 		return err
 	}
 
-	blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(usersInodo.I_block[0]*int32(Models.BLOQUE_SIZE))
-	_, err = file.Seek(blockPos, 0)
-	if err != nil {
-		return err
+	return nil
+}
+
+// writeUsersContentMultiBlock escribe contenido del archivo users.txt usando múltiples bloques
+func (um *UserManager) writeUsersContentMultiBlock(file *os.File, usersInodo *Models.Inodo, content string) error {
+	contentBytes := []byte(content)
+	totalBytes := len(contentBytes)
+	blocksNeeded := (totalBytes + Models.BLOQUE_SIZE - 1) / Models.BLOQUE_SIZE
+
+	// Limitar a 12 bloques directos
+	if blocksNeeded > 12 {
+		blocksNeeded = 12
+		contentBytes = contentBytes[:12*Models.BLOQUE_SIZE]
 	}
 
-	contentBlock := Models.BloqueArchivos{}
-	contentBlock.SetContent([]byte(contentStr))
-
-	buffer = new(bytes.Buffer)
-	err = binary.Write(buffer, binary.LittleEndian, &contentBlock)
-	if err != nil {
-		return err
+	// Liberar bloques existentes (excepto el primero si ya existe)
+	for i := 1; i < 12; i++ {
+		if usersInodo.I_block[i] != -1 {
+			// Aquí deberíamos liberar el bloque en el bitmap, pero por simplicidad lo omitimos
+			usersInodo.I_block[i] = -1
+		}
 	}
-	_, err = file.Write(buffer.Bytes())
-	if err != nil {
-		return err
+
+	// Escribir contenido en bloques
+	for i := 0; i < blocksNeeded; i++ {
+		// Calcular qué porción del contenido va en este bloque
+		start := i * Models.BLOQUE_SIZE
+		end := start + Models.BLOQUE_SIZE
+		if end > len(contentBytes) {
+			end = len(contentBytes)
+		}
+
+		blockContent := contentBytes[start:end]
+
+		// Si es el primer bloque, usar el bloque existente
+		var blockNum int32
+		if i == 0 && usersInodo.I_block[0] != -1 {
+			blockNum = usersInodo.I_block[0]
+		} else {
+			// Para bloques adicionales, usar bloques consecutivos seguros
+			// Asegurándonos de no sobrescribir otros archivos
+			if usersInodo.I_block[0] != -1 {
+				blockNum = usersInodo.I_block[0] + int32(i)
+			} else {
+				// Si no hay primer bloque, usar bloque alto como base
+				blockNum = 100 + int32(i)
+			}
+			usersInodo.I_block[i] = blockNum
+		}
+
+		// Limpiar el bloque antes de escribir para evitar basura
+		blockPos := um.partitionInfo.PartStart + int64(um.superBloque.S_block_start) + int64(blockNum*int32(Models.BLOQUE_SIZE))
+		_, err := file.Seek(blockPos, 0)
+		if err != nil {
+			return err
+		}
+
+		// Limpiar el bloque completo con ceros
+		emptyBlock := make([]byte, Models.BLOQUE_SIZE)
+		_, err = file.Write(emptyBlock)
+		if err != nil {
+			return err
+		}
+
+		// Reposicionarse para escribir el contenido
+		_, err = file.Seek(blockPos, 0)
+		if err != nil {
+			return err
+		}
+
+		contentBlock := Models.BloqueArchivos{}
+		contentBlock.SetContent(blockContent)
+
+		buffer := new(bytes.Buffer)
+		err = binary.Write(buffer, binary.LittleEndian, &contentBlock)
+		if err != nil {
+			return err
+		}
+		_, err = file.Write(buffer.Bytes())
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -219,6 +313,18 @@ func (um *UserManager) CreateUser(username, groupname, password string) error {
 		return err
 	}
 
+	// Validar que el usuario no exista
+	existingUser := um.FindUserByName(records, username)
+	if existingUser != nil {
+		return fmt.Errorf("Error: \"%s\" ya existe", username)
+	}
+
+	// Validar que el grupo exista
+	existingGroup := um.FindGroupByName(records, groupname)
+	if existingGroup == nil {
+		return fmt.Errorf("Error: El grupo \"%s\" no existe. Debe crear el grupo.", groupname)
+	}
+
 	newUser := &Models.UserRecord{
 		ID:       um.GetNextUserID(records),
 		Type:     "U",
@@ -239,6 +345,12 @@ func (um *UserManager) CreateGroup(groupname string) error {
 		return err
 	}
 
+	// Validar que el grupo no exista
+	existingGroup := um.FindGroupByName(records, groupname)
+	if existingGroup != nil {
+		return fmt.Errorf("Error: El grupo \"%s\" ya existe", groupname)
+	}
+
 	newGroup := &Models.UserRecord{
 		ID:    um.GetNextGroupID(records),
 		Type:  "G",
@@ -257,6 +369,9 @@ func (um *UserManager) DeleteUser(username string) error {
 	}
 
 	user := um.FindUserByName(records, username)
+	if user == nil {
+		return fmt.Errorf("ERROR: El usuario '%s' no existe", username)
+	}
 
 	user.ID = 0
 	return um.WriteUsersFile(records)

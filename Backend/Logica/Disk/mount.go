@@ -68,9 +68,10 @@ func Mount(path string, name string) error {
 		return fmt.Errorf("error leyendo MBR")
 	}
 
-	// Buscar la partición por nombre en el MBR
+	// Buscar la partición por nombre en el MBR (primarias y extendidas)
 	var targetPartition *Models.Partition
 
+	// Primero buscar en particiones primarias/extendidas del MBR
 	for i, partition := range mbr.Partitions {
 		if partition.PartStatus != 0 && partition.GetName() == name {
 			targetPartition = &mbr.Partitions[i]
@@ -78,13 +79,17 @@ func Mount(path string, name string) error {
 		}
 	}
 
+	// Si no se encontró, buscar en particiones lógicas
+	if targetPartition == nil {
+		targetPartition, _ = findLogicalPartition(file, &mbr, name)
+	}
+
 	if targetPartition == nil {
 		return fmt.Errorf("partición no encontrada")
 	}
 
-	if targetPartition.PartType != 'P' {
-		return fmt.Errorf("solo se pueden montar particiones primarias")
-	}
+	// Permitir montaje de particiones primarias, extendidas y lógicas
+	// Las particiones extendidas se pueden montar para generar reportes EBR
 
 	// Asignar letra de disco (reutilizar si ya existe, crear nueva si no)
 	var diskLetter rune
@@ -105,6 +110,31 @@ func Mount(path string, name string) error {
 	targetPartition.PartStatus = 1
 	targetPartition.PartCorrelative = int64(partitionNumber)
 	copy(targetPartition.PartID[:], mountID)
+
+	// Escribir los cambios de vuelta al disco
+	if targetPartition.PartType == 'L' {
+		// Para particiones lógicas, actualizar el EBR correspondiente
+		err = updateLogicalPartitionEBR(file, &mbr, name, mountID, partitionNumber)
+		if err != nil {
+			return fmt.Errorf("error actualizando EBR: %v", err)
+		}
+	} else {
+		// Para particiones primarias y extendidas, actualizar el MBR
+		for i := range mbr.Partitions {
+			if mbr.Partitions[i].GetName() == name {
+				mbr.Partitions[i] = *targetPartition
+				break
+			}
+		}
+
+		// Escribir MBR actualizado al disco
+		file.Seek(0, 0)
+		err = binary.Write(file, binary.LittleEndian, &mbr)
+		if err != nil {
+			return fmt.Errorf("error escribiendo MBR actualizado: %v", err)
+		}
+	}
+
 	mountInfo := MountInfo{
 		DiskPath:      path,
 		PartitionName: name,
@@ -187,4 +217,89 @@ func GetMountedPartitionByID(mountID string) *MountInfo {
 		return nil
 	}
 	return mountInfo
+}
+
+// findLogicalPartition busca una partición lógica por nombre en las particiones extendidas
+func findLogicalPartition(file *os.File, mbr *Models.MBR, name string) (*Models.Partition, bool) {
+	// Buscar en cada partición extendida
+	for _, partition := range mbr.Partitions {
+		if partition.PartType == 'E' && partition.PartStatus != 0 {
+			// Buscar en las particiones lógicas de esta extendida
+			currentEBRPos := partition.PartStart
+
+			for currentEBRPos != Models.EBR_END {
+				// Leer EBR
+				file.Seek(currentEBRPos, 0)
+				var ebr Models.EBR
+				err := binary.Read(file, binary.LittleEndian, &ebr)
+				if err != nil {
+					break
+				}
+
+				// Verificar si es la partición que buscamos
+				if ebr.GetLogicalPartitionName() == name && ebr.PartS > 0 {
+					// Crear una partición temporal con los datos del EBR
+					logicalPartition := &Models.Partition{
+						PartStatus: byte(ebr.PartMount),
+						PartType:   'L', // Lógica
+						PartFit:    ebr.PartFit,
+						PartStart:  ebr.PartStart,
+						PartSize:   ebr.PartS,
+					}
+					// Copiar el nombre
+					copy(logicalPartition.PartName[:], ebr.PartName[:])
+					return logicalPartition, true
+				}
+
+				// Siguiente EBR en la cadena
+				if ebr.PartNext == Models.EBR_END {
+					break
+				}
+				currentEBRPos = ebr.PartNext
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// updateLogicalPartitionEBR actualiza el EBR de una partición lógica con información de montaje
+func updateLogicalPartitionEBR(file *os.File, mbr *Models.MBR, name string, mountID string, partitionNumber int) error {
+	// Buscar en cada partición extendida
+	for _, partition := range mbr.Partitions {
+		if partition.PartType == 'E' && partition.PartStatus != 0 {
+			currentEBRPos := partition.PartStart
+
+			for currentEBRPos != Models.EBR_END {
+				// Leer EBR
+				file.Seek(currentEBRPos, 0)
+				var ebr Models.EBR
+				err := binary.Read(file, binary.LittleEndian, &ebr)
+				if err != nil {
+					break
+				}
+
+				// Verificar si es la partición que buscamos
+				if ebr.GetLogicalPartitionName() == name && ebr.PartS > 0 {
+					// Actualizar el EBR con información de montaje
+					ebr.PartMount = 1 // Marcar como montada
+					// Escribir EBR actualizado
+					file.Seek(currentEBRPos, 0)
+					err = binary.Write(file, binary.LittleEndian, &ebr)
+					if err != nil {
+						return fmt.Errorf("error escribiendo EBR actualizado: %v", err)
+					}
+					return nil
+				}
+
+				// Siguiente EBR en la cadena
+				if ebr.PartNext == Models.EBR_END {
+					break
+				}
+				currentEBRPos = ebr.PartNext
+			}
+		}
+	}
+
+	return fmt.Errorf("no se pudo encontrar EBR para partición lógica %s", name)
 }

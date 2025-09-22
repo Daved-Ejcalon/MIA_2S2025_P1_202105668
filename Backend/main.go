@@ -7,14 +7,24 @@ import (
 	"MIA_2S2025_P1_202105668/Logica/Users/Comandos"
 	"MIA_2S2025_P1_202105668/Logica/Users/Root"
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 )
 
 func main() {
+	// Verificar si se debe ejecutar como servidor web
+	if len(os.Args) > 1 && os.Args[1] == "server" {
+		startServer()
+		return
+	}
 
+	// Modo consola tradicional
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -343,14 +353,111 @@ func processRep(params map[string]string) error {
 
 	// Validar valores válidos para name
 	validNames := map[string]bool{
-		"mbr":  true,
-		"disk": true,
+		"mbr":   true,
+		"disk":  true,
+		"ebr":   true,
+		"inode": true,
+		"sb":    true,
+		"file":  true,
+		"ls":    true,
 	}
 
 	if !validNames[name] {
-		return fmt.Errorf("valor de -name debe ser: mbr o disk")
+		return fmt.Errorf("valor de -name debe ser: mbr, disk, ebr, inode, sb, file o ls")
 	}
 
 	// Llamar al generador de reportes correspondiente
 	return Reportes.GenerateReport(name, id, path, params["path_file_ls"])
+}
+
+// === SERVIDOR WEB ===
+
+type CommandRequest struct {
+	Command string `json:"command"`
+}
+
+type CommandResponse struct {
+	Output string `json:"output"`
+	Error  string `json:"error,omitempty"`
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func executeCommandHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req CommandRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Error al decodificar JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Capturar la salida estándar
+	oldStdout := os.Stdout
+	r_out, w_out, _ := os.Pipe()
+	os.Stdout = w_out
+
+	// Capturar errores
+	var cmdError error
+
+	// Ejecutar el comando en una goroutine para capturar la salida
+	done := make(chan bool)
+	var output []byte
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				cmdError = fmt.Errorf("PANIC: %v", r)
+			}
+			done <- true
+		}()
+
+		// Procesar el comando usando la función existente
+		cmdError = processCommand(strings.TrimSpace(req.Command))
+	}()
+
+	// Esperar a que termine y cerrar el pipe
+	go func() {
+		<-done
+		w_out.Close()
+	}()
+
+	// Leer la salida
+	output, _ = io.ReadAll(r_out)
+	os.Stdout = oldStdout
+
+	// Preparar la respuesta
+	resp := CommandResponse{
+		Output: string(output),
+	}
+
+	if cmdError != nil {
+		resp.Error = cmdError.Error()
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	// Enviar respuesta JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func startServer() {
+	http.HandleFunc("/execute", executeCommandHandler)
+
+	fmt.Println("Ctrl+C")
+
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

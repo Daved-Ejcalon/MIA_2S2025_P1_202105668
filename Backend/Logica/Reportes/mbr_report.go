@@ -34,6 +34,6 @@ func GenerateMBRReport(partitionID string, outputPath string) error {
 		return fmt.Errorf("error generando reporte MBR: %v", err)
 	}
 
-	fmt.Printf("Reporte MBR generado exitosamente: %s\n", outputPath)
+	fmt.Println("Reporte generado exitosamente")
 	return nil
 }

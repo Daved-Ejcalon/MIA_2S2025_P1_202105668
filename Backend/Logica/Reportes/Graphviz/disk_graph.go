@@ -2,6 +2,8 @@ package Graphviz
 
 import (
 	"MIA_2S2025_P1_202105668/Models"
+	"MIA_2S2025_P1_202105668/Utils"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,42 +33,43 @@ type LogicalSegment struct {
 
 // GenerateDiskGraph genera el gráfico DOT para el reporte de disco
 func GenerateDiskGraph(diskPath string, outputPath string) error {
-	// Leer datos del MBR
-	mbr, err := readMBRFromDisk(diskPath)
-	if err != nil {
-		return fmt.Errorf("error al leer MBR: %v", err)
-	}
-
-	// Calcular el layout del disco
-	diskLayout, err := calculateDiskLayout(diskPath, mbr)
-	if err != nil {
-		return fmt.Errorf("error calculando layout del disco: %v", err)
-	}
-
-	// Generar contenido DOT
+	mbr, _ := ReadMBRFromDisk(diskPath)
+	diskLayout, _ := calculateDiskLayout(diskPath, mbr)
 	dotContent := generateDiskDotContent(diskLayout, diskPath)
 
-	// Crear archivo temporal DOT
 	tempDir := os.TempDir()
 	dotFile := filepath.Join(tempDir, "disk_report.dot")
-
-	err = os.WriteFile(dotFile, []byte(dotContent), 0644)
-	if err != nil {
-		return fmt.Errorf("error creando archivo DOT: %v", err)
-	}
+	os.WriteFile(dotFile, []byte(dotContent), 0644)
 	defer os.Remove(dotFile)
 
-	// Generar imagen PNG usando Graphviz
-	return generateImageFromDot(dotFile, outputPath)
+	return Utils.GenerateImageFromDot(dotFile, outputPath)
 }
+
+// ReadMBRFromDisk lee el MBR desde el disco (función específica para disk_graph)
+func ReadMBRFromDisk(diskPath string) (*Models.MBR, error) {
+	file, err := os.Open(diskPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	mbr := &Models.MBR{}
+	err = binary.Read(file, binary.LittleEndian, mbr)
+	if err != nil {
+		return nil, err
+	}
+
+	return mbr, nil
+}
+
 
 // calculateDiskLayout calcula la distribución del disco con porcentajes
 func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error) {
 	var segments []DiskSegment
 	diskSize := mbr.MbrSize
-	currentPos := int64(Models.GetMBRSize()) // Empezar después del MBR
+	currentPos := int64(Models.GetMBRSize())
 
-	// Agregar segmento MBR
+
 	mbrSegment := DiskSegment{
 		Type:       "MBR",
 		Name:       "MBR",
@@ -77,7 +80,6 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 	}
 	segments = append(segments, mbrSegment)
 
-	// Ordenar particiones por posición de inicio
 	partitions := make([]Models.Partition, 0)
 	for _, partition := range mbr.Partitions {
 		if !partition.IsEmptyPartition() {
@@ -89,9 +91,7 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 		return partitions[i].PartStart < partitions[j].PartStart
 	})
 
-	// Procesar cada partición
 	for _, partition := range partitions {
-		// Agregar espacio libre antes de la partición si existe
 		if currentPos < partition.PartStart {
 			freeSize := partition.PartStart - currentPos
 			freeSegment := DiskSegment{
@@ -105,9 +105,7 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 			segments = append(segments, freeSegment)
 		}
 
-		// Agregar la partición
 		if partition.IsExtended() {
-			// Procesar partición extendida
 			extendedSegment := DiskSegment{
 				Type:       "Extendida",
 				Name:       partition.GetPartitionName(),
@@ -117,15 +115,11 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 				IsExtended: true,
 			}
 
-			// Obtener particiones lógicas
-			logicalPartitions, err := readLogicalPartitions(diskPath, partition.PartStart)
-			if err == nil {
-				extendedSegment.LogicalPartitions = calculateLogicalLayout(logicalPartitions, partition)
-			}
 
+			logicalPartitions, _ := Utils.ReadLogicalPartitions(diskPath, partition.PartStart)
+			extendedSegment.LogicalPartitions = calculateLogicalLayout(logicalPartitions, partition)
 			segments = append(segments, extendedSegment)
 		} else {
-			// Partición primaria
 			primarySegment := DiskSegment{
 				Type:       "Primaria",
 				Name:       partition.GetPartitionName(),
@@ -134,13 +128,14 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 				Percentage: (float64(partition.PartSize) / float64(diskSize)) * 100,
 				IsExtended: false,
 			}
+
+
 			segments = append(segments, primarySegment)
 		}
 
 		currentPos = partition.PartStart + partition.PartSize
 	}
 
-	// Agregar espacio libre al final si existe
 	if currentPos < diskSize {
 		freeSize := diskSize - currentPos
 		freeSegment := DiskSegment{
@@ -151,8 +146,11 @@ func calculateDiskLayout(diskPath string, mbr *Models.MBR) ([]DiskSegment, error
 			Percentage: (float64(freeSize) / float64(diskSize)) * 100,
 			IsExtended: false,
 		}
+
+
 		segments = append(segments, freeSegment)
 	}
+
 
 	return segments, nil
 }
@@ -163,25 +161,31 @@ func calculateLogicalLayout(logicalPartitions []Models.EBR, extendedPartition Mo
 	extendedSize := extendedPartition.PartSize
 	currentPos := extendedPartition.PartStart
 
-	// Ordenar particiones lógicas por posición
 	sort.Slice(logicalPartitions, func(i, j int) bool {
 		return logicalPartitions[i].PartStart < logicalPartitions[j].PartStart
 	})
 
 	for _, logical := range logicalPartitions {
-		// Agregar EBR
+		// Validar que tenga datos válidos (PartStart > 0 indica partición válida)
+		if logical.PartStart <= 0 || logical.PartS <= 0 {
+			continue
+		}
+
 		ebrStart := logical.PartStart - int64(Models.GetEBRSize())
+
+		// Espacio libre antes del EBR si existe
 		if ebrStart > currentPos {
-			// Espacio libre antes del EBR
 			freeSize := ebrStart - currentPos
-			freeSegment := LogicalSegment{
-				Type:       "Libre",
-				Name:       "Libre",
-				Start:      currentPos,
-				Size:       freeSize,
-				Percentage: (float64(freeSize) / float64(extendedSize)) * 100,
+			if freeSize > 0 {
+				freeSegment := LogicalSegment{
+					Type:       "Libre",
+					Name:       "Libre",
+					Start:      currentPos,
+					Size:       freeSize,
+					Percentage: (float64(freeSize) / float64(extendedSize)) * 100,
+				}
+				logicalSegments = append(logicalSegments, freeSegment)
 			}
-			logicalSegments = append(logicalSegments, freeSegment)
 		}
 
 		// EBR
@@ -207,18 +211,20 @@ func calculateLogicalLayout(logicalPartitions []Models.EBR, extendedPartition Mo
 		currentPos = logical.PartStart + logical.PartS
 	}
 
-	// Espacio libre al final de la partición extendida
+	// Espacio libre al final
 	extendedEnd := extendedPartition.PartStart + extendedPartition.PartSize
 	if currentPos < extendedEnd {
 		freeSize := extendedEnd - currentPos
-		freeSegment := LogicalSegment{
-			Type:       "Libre",
-			Name:       "Libre",
-			Start:      currentPos,
-			Size:       freeSize,
-			Percentage: (float64(freeSize) / float64(extendedSize)) * 100,
+		if freeSize > 0 {
+			freeSegment := LogicalSegment{
+				Type:       "Libre",
+				Name:       "Libre",
+				Start:      currentPos,
+				Size:       freeSize,
+				Percentage: (float64(freeSize) / float64(extendedSize)) * 100,
+			}
+			logicalSegments = append(logicalSegments, freeSegment)
 		}
-		logicalSegments = append(logicalSegments, freeSegment)
 	}
 
 	return logicalSegments
@@ -228,80 +234,217 @@ func calculateLogicalLayout(logicalPartitions []Models.EBR, extendedPartition Mo
 func generateDiskDotContent(diskLayout []DiskSegment, diskPath string) string {
 	var dot strings.Builder
 
-	dot.WriteString("digraph DiskReport {\n")
+	dot.WriteString("digraph ReporteDisco {\n")
 	dot.WriteString("    node [shape=plaintext, fontname=\"Arial\"];\n")
-	dot.WriteString("    rankdir=LR;\n")
-	dot.WriteString("    bgcolor=\"#f0f0f0\";\n")
-	dot.WriteString("    dpi=300;\n\n")
+	dot.WriteString("    rankdir=TB;\n")
+	dot.WriteString("    bgcolor=\"#2a2a2a\";\n")
+	dot.WriteString("    dpi=1500;\n")
+	dot.WriteString("    margin=0;\n\n")
 
-	// Crear tabla principal
-	dot.WriteString("    disk_table [label=<\n")
-	dot.WriteString("        <TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\" BGCOLOR=\"#ffffff\">\n")
+	// Calcular información del disco
+	diskName := filepath.Base(diskPath)
+	totalSize := int64(0)
+	for _, segment := range diskLayout {
+		totalSize += segment.Size
+	}
 
-	// Header del reporte
+	// Verificar si hay particiones extendidas con lógicas
+	hasExtendedWithLogicals := false
+	for _, segment := range diskLayout {
+		if segment.IsExtended && len(segment.LogicalPartitions) > 0 {
+			hasExtendedWithLogicals = true
+			break
+		}
+	}
+
+	dot.WriteString("    disk [label=<\n")
+	dot.WriteString("        <TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"4\" BGCOLOR=\"#2a2a2a\">\n")
+
+	// Header principal con información del disco (similar al MBR)
 	dot.WriteString("            <TR>\n")
-	dot.WriteString(fmt.Sprintf("                <TD COLSPAN=\"%d\" BGCOLOR=\"#2563eb\" ALIGN=\"center\">\n", len(diskLayout)))
-	dot.WriteString("                    <FONT COLOR=\"#ffffff\" POINT-SIZE=\"16\"><B>REPORTE DE DISCO</B></FONT>\n")
+	dot.WriteString("                <TD COLSPAN=\"6\" BGCOLOR=\"#5b21b6\" ALIGN=\"center\">\n")
+	dot.WriteString("                    <FONT COLOR=\"#f0f0f0\" POINT-SIZE=\"24\"><B>REPORTE DE DISCO</B></FONT>\n")
 	dot.WriteString("                </TD>\n")
 	dot.WriteString("            </TR>\n")
 
-	// Fila de segmentos principales
+	// Información del disco
 	dot.WriteString("            <TR>\n")
-	for _, segment := range diskLayout {
-		color := getSegmentColor(segment.Type)
-		dot.WriteString(fmt.Sprintf("                <TD BGCOLOR=\"%s\" ALIGN=\"center\" WIDTH=\"%d\">\n", color, int(segment.Percentage*10)))
+	dot.WriteString("                <TD COLSPAN=\"6\" BGCOLOR=\"#2a2a2a\" ALIGN=\"center\">\n")
+	dot.WriteString("                    <TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\" COLOR=\"#4a4a4a\">\n")
+	dot.WriteString("                        <TR>\n")
+	dot.WriteString("                            <TD BGCOLOR=\"#2a2a2a\" ALIGN=\"center\"><FONT COLOR=\"#f0f0f0\"><B>Archivo</B></FONT></TD>\n")
+	dot.WriteString(fmt.Sprintf("                            <TD BGCOLOR=\"#2a2a2a\" ALIGN=\"center\"><FONT COLOR=\"#f0f0f0\">%s</FONT></TD>\n", diskName))
+	dot.WriteString("                        </TR>\n")
+	dot.WriteString("                        <TR>\n")
+	dot.WriteString("                            <TD BGCOLOR=\"#2a2a2a\" ALIGN=\"center\"><FONT COLOR=\"#f0f0f0\"><B>Tamaño Total</B></FONT></TD>\n")
+	dot.WriteString(fmt.Sprintf("                            <TD BGCOLOR=\"#2a2a2a\" ALIGN=\"center\"><FONT COLOR=\"#f0f0f0\">%.1f MB</FONT></TD>\n", float64(totalSize)/(1024*1024)))
+	dot.WriteString("                        </TR>\n")
+	dot.WriteString("                    </TABLE>\n")
+	dot.WriteString("                </TD>\n")
+	dot.WriteString("            </TR>\n")
 
-		if segment.IsExtended && len(segment.LogicalPartitions) > 0 {
-			// Partición extendida con sub-tabla
-			dot.WriteString("                    <TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n")
-			dot.WriteString("                        <TR>\n")
-			dot.WriteString(fmt.Sprintf("                            <TD COLSPAN=\"%d\" BGCOLOR=\"%s\" ALIGN=\"center\">\n", len(segment.LogicalPartitions), color))
-			dot.WriteString(fmt.Sprintf("                                <FONT COLOR=\"#ffffff\" POINT-SIZE=\"10\"><B>%s</B></FONT>\n", segment.Type))
-			dot.WriteString("                            </TD>\n")
-			dot.WriteString("                        </TR>\n")
-			dot.WriteString("                        <TR>\n")
+	// Espacio separador
+	dot.WriteString("            <TR><TD COLSPAN=\"6\" HEIGHT=\"15\"></TD></TR>\n")
 
-			// Particiones lógicas
-			for _, logical := range segment.LogicalPartitions {
-				logicalColor := getSegmentColor(logical.Type)
-				dot.WriteString(fmt.Sprintf("                            <TD BGCOLOR=\"%s\" ALIGN=\"center\" WIDTH=\"%d\">\n", logicalColor, int(logical.Percentage*2)))
-				dot.WriteString(fmt.Sprintf("                                <FONT COLOR=\"#000000\" POINT-SIZE=\"8\"><B>%s</B></FONT>\n", logical.Type))
-				dot.WriteString("                            </TD>\n")
+	// Comenzar tabla de particiones
+	dot.WriteString("            <TR>\n")
+	dot.WriteString("                <TD COLSPAN=\"6\">\n")
+	dot.WriteString("                    <table border=\"2\" cellborder=\"1\" cellspacing=\"0\">\n")
+
+	if hasExtendedWithLogicals {
+		// Formato complejo para particiones extendidas con lógicas
+
+		// Fila 1: Tipos de partición principales
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
 			}
 
-			dot.WriteString("                        </TR>\n")
-			dot.WriteString("                    </TABLE>\n")
-		} else {
-			// Segmento simple
-			dot.WriteString(fmt.Sprintf("                    <FONT COLOR=\"#000000\" POINT-SIZE=\"12\"><B>%s</B></FONT>\n", segment.Type))
+			color := getSegmentColor(segment.Type)
+			sizeInMB := float64(segment.Size) / (1024 * 1024)
+
+			if segment.IsExtended && len(segment.LogicalPartitions) > 0 {
+				// Calcular colspan dinámicamente basado en número de elementos lógicos
+				logicalCells := 0
+				for _, logical := range segment.LogicalPartitions {
+					if logical.Type == "EBR" || logical.Type == "Lógica" || (logical.Type == "Libre" && logical.Size > 0) {
+						logicalCells++
+					}
+				}
+
+				dot.WriteString(fmt.Sprintf("                <td colspan=\"%d\" bgcolor=\"%s\"><font color=\"white\"><b>Extendida - %s (%.0fMB - %.0f%%)</b></font></td>\n",
+					logicalCells, color, segment.Name, sizeInMB, segment.Percentage))
+			} else {
+				typeName := "Primaria"
+				if segment.Type == "Libre" {
+					typeName = "Libre"
+				}
+				dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\"><font color=\"white\"><b>%s</b></font></td>\n", color, typeName))
+			}
 		}
+		dot.WriteString("            </tr>\n")
 
-		dot.WriteString("                </TD>\n")
-	}
-	dot.WriteString("            </TR>\n")
+		// Fila 2: Detalles de particiones lógicas y información de primarias/libre
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
+			}
 
-	// Fila de porcentajes
-	dot.WriteString("            <TR>\n")
-	for _, segment := range diskLayout {
-		dot.WriteString("                <TD BGCOLOR=\"#e5e7eb\" ALIGN=\"center\">\n")
-		dot.WriteString(fmt.Sprintf("                    <FONT COLOR=\"#000000\" POINT-SIZE=\"10\">%.1f%%</FONT>\n", segment.Percentage))
-		dot.WriteString("                </TD>\n")
-	}
-	dot.WriteString("            </TR>\n")
+			if segment.IsExtended && len(segment.LogicalPartitions) > 0 {
+				// Mostrar detalles de particiones lógicas
+				for _, logical := range segment.LogicalPartitions {
+					logicalColor := getSegmentColor(logical.Type)
+					logicalSizeInMB := float64(logical.Size) / (1024 * 1024)
 
-	// Fila de nombres
-	dot.WriteString("            <TR>\n")
-	for _, segment := range diskLayout {
-		dot.WriteString("                <TD BGCOLOR=\"#f3f4f6\" ALIGN=\"center\">\n")
-		if segment.Name != "" && segment.Name != segment.Type {
-			dot.WriteString(fmt.Sprintf("                    <FONT COLOR=\"#000000\" POINT-SIZE=\"9\">%s</FONT>\n", segment.Name))
-		} else {
-			dot.WriteString("                    <FONT COLOR=\"#000000\" POINT-SIZE=\"9\">-</FONT>\n")
+					if logical.Type == "EBR" {
+						dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\" width=\"30\"><font color=\"black\"><b>EBR</b></font></td>\n", logicalColor))
+					} else if logical.Type == "Lógica" {
+						dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\" width=\"60\"><font color=\"black\"><b>%s<br/>%.0fMB</b></font></td>\n",
+							logicalColor, logical.Name, logicalSizeInMB))
+					} else if logical.Type == "Libre" && logical.Size > 0 {
+						dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\" width=\"50\"><font color=\"black\"><b>Libre<br/>%.0fMB</b></font></td>\n",
+							logicalColor, logicalSizeInMB))
+					}
+				}
+			} else {
+				// Partición simple (primaria o libre)
+				color := getSegmentColor(segment.Type)
+				sizeInMB := float64(segment.Size) / (1024 * 1024)
+
+				if segment.Type == "Libre" {
+					dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\"><font color=\"white\"><b>%.0fMB<br/>%.0f%%</b></font></td>\n",
+						color, sizeInMB, segment.Percentage))
+				} else {
+					dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\"><font color=\"white\"><b>%s<br/>%.0fMB</b></font></td>\n",
+						color, segment.Name, sizeInMB))
+				}
+			}
 		}
-		dot.WriteString("                </TD>\n")
-	}
-	dot.WriteString("            </TR>\n")
+		dot.WriteString("            </tr>\n")
 
+		// Fila 3: Información descriptiva
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
+			}
+
+			if segment.IsExtended && len(segment.LogicalPartitions) > 0 {
+				// Contar particiones lógicas
+				logicalCount := 0
+				for _, logical := range segment.LogicalPartitions {
+					if logical.Type == "Lógica" {
+						logicalCount++
+					}
+				}
+
+				for _, logical := range segment.LogicalPartitions {
+					if logical.Type == "EBR" {
+						dot.WriteString("                <td bgcolor=\"#3a3a3a\"><font color=\"#e5e7eb\" point-size=\"9\">EBR</font></td>\n")
+					} else if logical.Type == "Lógica" {
+						dot.WriteString(fmt.Sprintf("                <td bgcolor=\"#4a4a4a\"><font color=\"#e5e7eb\" point-size=\"9\">%s</font></td>\n", logical.Name))
+					} else if logical.Type == "Libre" && logical.Size > 0 {
+						dot.WriteString("                <td bgcolor=\"#1e1e1e\"><font color=\"#9ca3af\" point-size=\"9\">Libre</font></td>\n")
+					}
+				}
+			} else {
+				if segment.Type == "Libre" {
+					dot.WriteString("                <td bgcolor=\"#1e1e1e\"><font color=\"#9ca3af\" point-size=\"10\">Espacio disponible</font></td>\n")
+				} else {
+					dot.WriteString(fmt.Sprintf("                <td bgcolor=\"#4a4a4a\"><font color=\"#e5e7eb\" point-size=\"10\">%s</font></td>\n", segment.Name))
+				}
+			}
+		}
+		dot.WriteString("            </tr>\n")
+
+	} else {
+		// Formato simple para solo particiones primarias (como Disco 1)
+
+		// Fila 1: Nombres
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
+			}
+
+			color := getSegmentColor(segment.Type)
+			if segment.Type == "Libre" {
+				dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\"><font color=\"white\"><b>Libre</b></font></td>\n", color))
+			} else {
+				dot.WriteString(fmt.Sprintf("                <td bgcolor=\"%s\"><font color=\"white\"><b>%s</b></font></td>\n", color, segment.Name))
+			}
+		}
+		dot.WriteString("            </tr>\n")
+
+		// Fila 2: Tamaños
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
+			}
+
+			sizeInMB := float64(segment.Size) / (1024 * 1024)
+			dot.WriteString(fmt.Sprintf("                <td bgcolor=\"#3a3a3a\" align=\"center\"><font color=\"#e5e7eb\"><b>%.0fMB</b></font></td>\n", sizeInMB))
+		}
+		dot.WriteString("            </tr>\n")
+
+		// Fila 3: Porcentajes
+		dot.WriteString("            <tr>\n")
+		for _, segment := range diskLayout {
+			if segment.Type == "MBR" {
+				continue
+			}
+
+			dot.WriteString(fmt.Sprintf("                <td bgcolor=\"#4a4a4a\" align=\"center\"><font color=\"#e5e7eb\"><b>%.1f%%</b></font></td>\n", segment.Percentage))
+		}
+		dot.WriteString("            </tr>\n")
+	}
+
+	dot.WriteString("                    </table>\n")
+	dot.WriteString("                </TD>\n")
+	dot.WriteString("            </TR>\n")
 	dot.WriteString("        </TABLE>\n")
 	dot.WriteString("    >];\n")
 	dot.WriteString("}\n")
@@ -309,23 +452,22 @@ func generateDiskDotContent(diskLayout []DiskSegment, diskPath string) string {
 	return dot.String()
 }
 
-// getSegmentColor retorna el color apropiado para cada tipo de segmento
+// getSegmentColor retorna el color apropiado para cada tipo de segmento (coincide con MBR)
 func getSegmentColor(segmentType string) string {
 	switch segmentType {
 	case "MBR":
-		return "#1f2937"      // Gris oscuro
+		return "#6b7280"      // Gris oscuro
 	case "Primaria":
-		return "#3b82f6"      // Azul
+		return "#4c1d95"      // Morado oscuro (igual que MBR)
 	case "Extendida":
-		return "#10b981"      // Verde
+		return "#1e293b"      // Azul oscuro (igual que MBR)
 	case "Lógica":
-		return "#f59e0b"      // Amarillo/naranja
+		return "#7f1d1d"      // Rojo oscuro (igual que MBR)
 	case "EBR":
-		return "#ef4444"      // Rojo
+		return "#374151"      // Gris medio para EBRs
 	case "Libre":
-		return "#d1d5db"      // Gris claro
+		return "#6b7280"      // Gris para espacio libre
 	default:
-		return "#9ca3af"      // Gris medio
+		return "#333333"      // Gris medio
 	}
 }
-

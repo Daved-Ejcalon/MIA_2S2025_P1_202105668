@@ -3,13 +3,14 @@ package Reportes
 import (
 	"MIA_2S2025_P1_202105668/Logica/Disk"
 	"MIA_2S2025_P1_202105668/Logica/Reportes/Graphviz"
+	"MIA_2S2025_P1_202105668/Logica/Users"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
-// GenerateDiskReport genera un reporte del disco en formato JPG usando Graphviz
-func GenerateDiskReport(partitionID string, outputPath string) error {
+// GenerateSuperBlockReport genera un reporte del superbloque en formato JPG usando Graphviz
+func GenerateSuperBlockReport(partitionID string, outputPath string) error {
 	// Buscar la partición montada por ID
 	mountedPartition := Disk.GetMountedPartitionByID(partitionID)
 	if mountedPartition == nil {
@@ -22,16 +23,25 @@ func GenerateDiskReport(partitionID string, outputPath string) error {
 		return fmt.Errorf("el disco '%s' no existe", diskPath)
 	}
 
+	// Obtener información de la partición y superbloque
+	_, superblock, err := Users.GetPartitionAndSuperBlock(mountedPartition)
+	if err != nil {
+		return fmt.Errorf("error obteniendo superbloque: %v", err)
+	}
+
 	// Crear directorio de salida si no existe
 	outputDir := filepath.Dir(outputPath)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("error creando directorio de salida: %v", err)
 	}
 
+	// Obtener nombre del disco para mostrar en el reporte
+	diskName := filepath.Base(diskPath)
+
 	// Generar el reporte usando Graphviz
-	err := Graphviz.GenerateDiskGraph(diskPath, outputPath)
+	err = Graphviz.GenerateSuperBlockGraph(superblock, diskName, outputPath)
 	if err != nil {
-		return fmt.Errorf("error generando reporte de disco: %v", err)
+		return fmt.Errorf("error generando reporte de superbloque: %v", err)
 	}
 
 	fmt.Println("Reporte generado exitosamente")

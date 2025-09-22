@@ -22,7 +22,7 @@ func NewEBRManager(diskPath string, extendedPartition *Models.Partition) *EBRMan
 	}
 }
 
-// CreateFirstEBR inicializa el primer EBR vacío en la partición extendida
+// CreateFirstEBR inicializa el primer EBR vacío en la partición extendida solo si no existe
 func (e *EBRManager) CreateFirstEBR() error {
 	if e.extendedPartition == nil {
 		return errors.New("se requiere una particion extendida valida")
@@ -31,6 +31,20 @@ func (e *EBRManager) CreateFirstEBR() error {
 	if !e.extendedPartition.IsExtended() {
 		return errors.New("la particion debe ser de tipo extendida")
 	}
+
+	// Verificar si ya existe un EBR válido en el inicio de la partición extendida
+	existingEBR, err := e.ReadEBR(e.extendedPartition.PartStart)
+	if err == nil {
+		// Verificar si el EBR es válido (no vacío y no con partición lógica activa)
+		if !existingEBR.IsEmptyEBR() {
+			return nil
+		}
+		// Si es un EBR vacío válido con PartNext correcto, tampoco sobrescribir
+		if existingEBR.IsEmptyEBR() && existingEBR.PartNext == Models.EBR_END {
+			return nil
+		}
+	}
+
 
 	firstEBR := Models.EBR{
 		PartMount: Models.EBR_UNMOUNTED,
@@ -44,7 +58,7 @@ func (e *EBRManager) CreateFirstEBR() error {
 		firstEBR.PartName[i] = 0
 	}
 
-	err := e.WriteEBR(&firstEBR, e.extendedPartition.PartStart)
+	err = e.WriteEBR(&firstEBR, e.extendedPartition.PartStart)
 	if err != nil {
 		return fmt.Errorf("error creando EBR")
 	}
@@ -73,6 +87,12 @@ func (e *EBRManager) WriteEBR(ebr *Models.EBR, position int64) error {
 	_, err = file.Write(buffer.Bytes())
 	if err != nil {
 		return fmt.Errorf("error escribiendo EBR")
+	}
+
+	// Forzar sincronización al disco
+	err = file.Sync()
+	if err != nil {
+		return fmt.Errorf("error sincronizando EBR")
 	}
 
 	return nil
@@ -107,11 +127,13 @@ func (e *EBRManager) ReadEBR(position int64) (*Models.EBR, error) {
 		return nil, fmt.Errorf("error deserializando EBR")
 	}
 
+
 	return ebr, nil
 }
 
 // AddLogicalPartition crea una nueva partición lógica usando algoritmos de ajuste
 func (e *EBRManager) AddLogicalPartition(name string, size int64, fitType byte) error {
+
 	// Validaciones de entrada
 	if name == "" {
 		return errors.New("el nombre de la partición lógica es obligatorio")
@@ -138,10 +160,12 @@ func (e *EBRManager) AddLogicalPartition(name string, size int64, fitType byte) 
 		return fmt.Errorf("no se pudo encontrar espacio para la partición: %v", err)
 	}
 
+
 	currentEBR, ebrPosition, err := e.getEBRForInsertion(insertPosition)
 	if err != nil {
 		return fmt.Errorf("error obteniendo EBR")
 	}
+
 
 	if currentEBR.IsEmptyEBR() {
 		currentEBR.PartMount = Models.EBR_UNMOUNTED
@@ -153,10 +177,12 @@ func (e *EBRManager) AddLogicalPartition(name string, size int64, fitType byte) 
 		return e.insertNewEBRInChain(name, size, fitType, insertPosition)
 	}
 
+
 	err = e.WriteEBR(currentEBR, ebrPosition)
 	if err != nil {
 		return fmt.Errorf("error escribiendo EBR")
 	}
+
 
 	return nil
 }
@@ -197,11 +223,10 @@ func (e *EBRManager) getOccupiedSpacesInExtended() ([][2]int64, error) {
 			return nil, fmt.Errorf("error leyendo EBR")
 		}
 
+
 		if !ebr.IsEmptyEBR() {
-			occupiedSpaces = append(occupiedSpaces, [2]int64{
-				currentEBRPos,
-				ebr.GetPartitionEnd(),
-			})
+			spaceRange := [2]int64{currentEBRPos, ebr.GetPartitionEnd()}
+			occupiedSpaces = append(occupiedSpaces, spaceRange)
 		}
 
 		if ebr.HasNext() {

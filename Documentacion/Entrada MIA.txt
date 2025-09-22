@@ -1,16 +1,7 @@
-#Calificacion Proyecto 1
-#2S 2025
-#Cambiar "su_usuario" -> por el usuario de su distribución de linux  
-#Cambiar “68” -> por los ultimos dos digitos de su carnet  
-
-
 #----------------- 1. MKDISK  -----------------
-
-
 #----------------- MKDISK CON ERROR -----------------
 # ERROR PARAMETROS
 mkdisk -param=x -size=30 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia
-
 
 #----------------- CREACION DE DISCOS -----------------
 # ERROR PARAMETROS
@@ -36,7 +27,6 @@ mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/D
 # 50M J X
 mkdisk -size=51200 -unit=K -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco10.mia
 
-
 #-----------------2. RMDISK-----------------
 #ERROR DISCO NO EXISTE
 rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/DiscoN.mia
@@ -51,7 +41,6 @@ rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco9.mia
 # BORRANDO DISCO
 rmdisk -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco10.mia
 
-
 #-----------------3. FDISK-----------------
 #-----------------CREACION DE PARTICIONES-----------------
 #DISCO 1
@@ -65,16 +54,10 @@ fdisk -type=P -unit=k -name=Part12 -size=10240 -path=C:/Users/Revy/Desktop/Calif
 fdisk -type=P -unit=M -name=Part13 -size=10 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 # PRIMARIA 10M
 fdisk -type=P -unit=b -name=Part14 -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
-#ERR LMITE PARTICION PRIMARIA
+#ERROR LMITE PARTICION PRIMARIA
 fdisk -type=P -unit=b -name=PartErr -size=10485760 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -fit=BF
 
-
-
-
 # LIBRE DISCO 1: 50-4*10 = 10 -> 20%
-
-
-
 
 #DISCO 3
 # ERROR FALTA ESPACIO
@@ -86,13 +69,7 @@ fdisk -type=P -unit=m -name=Part32 -size=4 -path=C:/Users/Revy/Desktop/Calificac
 #1M
 fdisk -type=P -unit=m -name=Part33 -size=1 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia
 
-
-
-
 #LIBRE DISCO 3: 13-9= 4 -> 30.77%
-
-
-
 
 #DISCO 5
 # 5MB
@@ -108,14 +85,8 @@ fdisk -type=L -unit=k -name=Part55 -size=1024 -path=C:/Users/Revy/Desktop/Califi
 # 1MB
 fdisk -type=L -unit=k -name=Part56 -size=1024 -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -fit=BF
 
-
-
-
 # LIBRE DISCO 5: 20-10 = 5 -> 50%
 # LIBRE EXTENDIDA 2: 5-4 = 1 -> 20% (por los EBR deberia ser menos)
-
-
-
 
 #-----------------MOUNT-----------------
 #-----------------MONTAR PARTICIONES-----------------
@@ -127,9 +98,6 @@ mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -name=Part1
 #ERROR PARTICION YA MONTADA
 mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco1.mia -name=Part11
 
-
-
-
 #DISCO 3
 #ERROR PARTCION NO EXISTE
 mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part0
@@ -138,72 +106,46 @@ mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part3
 #682B -> 68 sus ultimos dos digitos del carnet
 mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco3.mia -name=Part32
 
-
-
-
 #DISCO 5
 #681C -> 68 sus ultimos dos digitos del carnet
 mount -path=C:/Users/Revy/Desktop/Calificacion_MIA/Discos/Disco5.mia -name=Part53
-
 
 #-----------------MOUNT-----------------
 # ENLISTAR
 mounted
 
-
-
-
 #-----------------REPORTES PARTE 1-----------------
 #DISCO 1
 #ERROR ID NO ENCONTRADO
-rep -id=A681 -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE.jpg -name=mbr
-#REPORTE DISK
-rep -id=681A -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r1_disk.jpg -name=disk
-#REPORTE MBR 
-rep -id=681A -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r2_mbr.jpg -name=mbr
-
-
+rep -id=777A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/Disk_777A.jpg -name=disk
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/Disk_681A.jpg -name=disk
+rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/MBR_681A.jpg -name=mbr
 
 
 #DISCO 3
 #ERROR ID NO ENCONTRADO
-rep -id=683B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE_mbr.jpg -name=mbr
-#REPORTE DISK
-rep -id=681B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r3_disk.jpg -name=disk
-#REPORTE MBR
-rep -id=682B -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r4_disk.jpg -name=mbr
-
-
+rep -id=777B -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/Disk_777B.jpg -name=disk
+rep -id=682B -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/Disk_681B.jpg -name=disk
+rep -id=682B -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/MBR_682B.jpg -name=mbr
 
 
 #DISCO 5
 #ERROR ID NO ENCONTRADO
-rep -id=IDx -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_rE_mbr.jpg -name=mbr
-#REPORTE DISK
-rep -id=681C -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r5_disk.jpg -name=disk
-#REPORTE MBR
-rep -id=681C -Path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p1_r6_mbr.jpg -name=mbr
-
-
+rep -id=IDx -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/MBR_IDx.jpg -name=mbr
+rep -id=681C -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/Disk_681C.jpg -name=disk
+rep -id=681C -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/MBR_681C.jpg -name=mbr
+rep -id=681C -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/EBR_681C.jpg -name=ebr
 
 
 #-----------------5. MKFS-----------------
+
 mkfs -type=full -id=681A
 
-
-
-
 #-----------------PARTE 3-----------------
-
-
-
-
 #-----------------7. LOGIN-----------------
 login -user=root -pass=123 -id=681A
 #ERROR SESION INICIADA
 login -user=root -pass=123 -id=681A
-
-
 
 
 #-----------------9. MKGRP-----------------
@@ -216,76 +158,57 @@ mkgrp -name=sys
 mkgrp -name=sys
 
 
-
-
 #-----------------6. CAT-----------------
+
 cat -file1=/users.txt
-
-
-
 
 #-----------------10. RMGR-----------------
+
 rmgrp -name=mail
 
-
-
-
 #-----------------6. CAT-----------------
+
 cat -file1=/users.txt
-
-
-
 
 #-----------------11. MKUSR-----------------------------------------------
-mkusr -user="usuario1" -pass=password -grp=root
-mkusr -user="user1" -pass=abc -grp=usuarios
-mkusr -user="user2" -pass=abc -grp=usuarios
+mkusr -user=Daved_1 -pass=password -grp=root
+mkusr -user=Abshalon_2 -pass=2021 -grp=usuarios
+mkusr -user=Ejcalon_3 -pass=abc -grp=usuarios
+
 #ERROR EL USUARIO YA EXISTE
-mkusr -user="user2" -pass=abc -grp=usuarios
+mkusr -user=Ejcalon_3" -pass=abc -grp=usuarios
+
 #ERROR GRUPO NO EXISTE
-mkusr -user="user3" -pass=abc -grp=system
-
-
+mkusr -user="Chonay_3" -pass=abc -grp=system
 
 
 #-----------------6. CAT-----------------
+
 cat -file1=/users.txt
-
-
-
 
 #-----------------13. CHGRP-----------------
-chgrp -user=user2 -grp=adm
 
-
-
+chgrp -user=Abshalon_2 -grp=adm
 
 #-----------------6. CAT-----------------
+
 cat -file1=/users.txt
-
-
-
 
 #-----------------12. RMUSR-----------------
-rmusr -user=user2
 
-
-
+rmusr -user=Abshalon_2
 
 #-----------------6. CAT-----------------
+
 cat -file1=/users.txt
-
-
-
 
 #-----------------15. MKDIR-----------------
 mkdir -path=/bin
+
 # ERROR NO EXISTEN LAS CARPETAS PADRES
 mkdir -path="/home/archivos/archivos 24"
 mkdir -p -path=/home/archivos/user/docs/usac
 mkdir -p -path=/home/archivos/carpeta1/carpeta2/carpeta3/carpeta4/carpeta5
-
-
 
 
 #-----------------8. LOGOUT-----------------
@@ -293,71 +216,46 @@ logout
 logout #ERROR NO HAY SESION INICIADA
 
 
-
-
 #-----------------7. LOGIN-----------------
 #Validar un inicio de sesión para un usuario creado
-login -user=user1 -pass=abc -id=681A
-
+login -user=Daved_1 -pass=password -id=681A
+login -user=Abshalon_2 -pass=2021 -id=681A
 
 logout 
 
-
 #Regresamos al root 
 
-
 login -user=root -pass=123 -id=681A
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #-----------------14. MKFILE-----------------
 mkfile -path=/home/archivos/user/docs/Tarea.txt -size=75
 mkfile -path=/home/archivos/user/docs/Tarea2.txt -size=768
 
-
-
-
 #Para este comando hay que crear un archivo en la computadora y en cont poner su primer nombre
 #Crear un archivo txt en su Escritorio llamado NAME
 
-
-
-
 # Cambiar la ruta del cont por la del archivo NAME.txt que creo
-mkfile -path=/home/archivos/user/docs/Tarea3.txt -size=10 -cont=C:/Users/Revy/Desktop/Calificacion_MIA/CONT/NAME.txt
-
-
-
+mkfile -path=/home/archivos/user/docs/Tarea3.txt -size=10 -cont=C:/Users/Revy/Desktop/Name.txt
 
 #ERROR NO EXISTE RUTA
 mkfile -path="/home/archivos/noexiste/b1.txt"
 
-
 #ERROR NEGATIVO
 mkfile -path="/home/archivos/b1.txt" -size=-45
-
 
 #RECURSIVO
 mkfile -r -path=/home/archivos/user/docs/usac/archivos/proyectos/fase1/entrada.txt
 
 
 #-----------------6. CAT-----------------
+
+cat -file1=/home/archivos/user/docs/Tarea.txt
 cat -file1=/home/archivos/user/docs/Tarea2.txt
 cat -file1=/home/archivos/user/docs/Tarea3.txt
 
-
 #------------------------REPORTES PARTE 4----------------
+
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r1_inode.jpg" -name=inode
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r2_block.jpg" -name=block
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r3_bm_inode.txt" -name=bm_inode
@@ -366,9 +264,6 @@ rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r5_sb.jpg"
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r6_file.jpg" -path_file_ls=/home/archivos/user/docs/Tarea2.txt  -name=file
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r7_ls.jpg" -path_file_ls=/home/archivos/user/docs -name=ls
 rep -id=681A -path=C:/Users/Revy/Desktop/Calificacion_MIA/Reportes/p4_r8_tree.png" -name=tree
-
-
-
 
 #------------------------8. LOGOUT------------------------
 logout

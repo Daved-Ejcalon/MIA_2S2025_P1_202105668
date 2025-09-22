@@ -37,6 +37,8 @@ func (f *EXT2FileManager) ReadFileContent(filePath string) (string, error) {
 		return "", errors.New("no es un archivo")
 	}
 
+	// Los permisos se verifican en la capa de comando para evitar ciclos de importación
+
 	content, err := f.readInodeContent(inodo)
 	if err != nil {
 		return "", err
@@ -64,6 +66,8 @@ func (f *EXT2FileManager) WriteFileContent(filePath string, content string, uid 
 	if parentInodo.I_type != Models.INODO_DIRECTORIO {
 		return errors.New("directorio padre inv�lido")
 	}
+
+	// Los permisos se verifican en la capa de comando para evitar ciclos de importación
 
 	// Determinar si crear nuevo archivo o sobreescribir existente
 	existingInodo, err := f.findFileInode(filePath)
@@ -184,10 +188,17 @@ func (f *EXT2FileManager) readDirectoryBlock(blockNumber int32) (*Models.BloqueC
 // readInodeContent lee el contenido completo de un inodo desde sus bloques
 func (f *EXT2FileManager) readInodeContent(inodo *Models.Inodo) ([]byte, error) {
 	content := make([]byte, 0, inodo.I_s)
+	bytesRead := int32(0)
 
 	// Leer contenido de los 12 bloques directos
 	for i := 0; i < 12 && i < len(inodo.I_block); i++ {
 		if inodo.I_block[i] == Models.FREE_BLOCK {
+			break
+		}
+
+		// Calcular cuántos bytes leer de este bloque
+		bytesRemaining := inodo.I_s - bytesRead
+		if bytesRemaining <= 0 {
 			break
 		}
 
@@ -196,12 +207,19 @@ func (f *EXT2FileManager) readInodeContent(inodo *Models.Inodo) ([]byte, error) 
 			return nil, err
 		}
 
-		content = append(content, blockContent...)
-	}
+		// Solo tomar los bytes necesarios de este bloque
+		bytesToTake := int32(Models.BLOQUE_SIZE)
+		if bytesToTake > bytesRemaining {
+			bytesToTake = bytesRemaining
+		}
 
-	// Asegurar que no exceda el tamano declarado del archivo
-	if int32(len(content)) > inodo.I_s {
-		content = content[:inodo.I_s]
+		content = append(content, blockContent[:bytesToTake]...)
+		bytesRead += bytesToTake
+
+		// Si ya leímos todo el archivo, terminar
+		if bytesRead >= inodo.I_s {
+			break
+		}
 	}
 
 	return content, nil
@@ -235,29 +253,30 @@ func (f *EXT2FileManager) overwriteFileContent(inodeNumber int32, content string
 		return err
 	}
 
-	inodo.I_s = int32(len(content))
-	inodo.I_mtime = float64(Models.GetCurrentUnixTime())
-	inodo.I_atime = float64(Models.GetCurrentUnixTime())
-
-	if inodo.I_block[0] != Models.FREE_BLOCK {
-		err = f.writeFileBlock(inodo.I_block[0], content)
-		if err != nil {
-			return err
-		}
-	}
-
-	return f.writeInode(inodeNumber, inodo)
-}
-
-// createNewFile crea un archivo nuevo con inodo y bloque asignados
-func (f *EXT2FileManager) createNewFile(parentInodeNum int32, fileName string, content string, uid int32, gid int32, permissions int32) error {
-	// Asignar recursos: inodo y bloque libres
-	newInodeNum, err := f.findFreeInode()
+	// Liberar bloques antiguos
+	err = f.freeInodeBlocks(inodo)
 	if err != nil {
 		return err
 	}
 
-	newBlockNum, err := f.findFreeBlock()
+	// Escribir nuevo contenido con múltiples bloques
+	err = f.writeMultipleBlocks(inodo, []byte(content))
+	if err != nil {
+		return err
+	}
+
+	// Actualizar metadatos del inodo
+	inodo.I_s = int32(len(content))
+	inodo.I_mtime = float64(Models.GetCurrentUnixTime())
+	inodo.I_atime = float64(Models.GetCurrentUnixTime())
+
+	return f.writeInode(inodeNumber, inodo)
+}
+
+// createNewFile crea un archivo nuevo con inodo y múltiples bloques asignados
+func (f *EXT2FileManager) createNewFile(parentInodeNum int32, fileName string, content string, uid int32, gid int32, permissions int32) error {
+	// Asignar inodo libre
+	newInodeNum, err := f.findFreeInode()
 	if err != nil {
 		return err
 	}
@@ -274,32 +293,31 @@ func (f *EXT2FileManager) createNewFile(parentInodeNum int32, fileName string, c
 		I_perm:  Models.SetPermissions(permissions),
 	}
 
+	// Inicializar todos los bloques como libres
 	for i := range newInodo.I_block {
 		newInodo.I_block[i] = Models.FREE_BLOCK
 	}
-	newInodo.I_block[0] = newBlockNum
 
-	err = f.writeFileBlock(newBlockNum, content)
+	// Escribir contenido usando múltiples bloques
+	err = f.writeMultipleBlocks(&newInodo, []byte(content))
 	if err != nil {
 		return err
 	}
 
+	// Guardar inodo
 	err = f.writeInode(newInodeNum, &newInodo)
 	if err != nil {
 		return err
 	}
 
+	// Agregar entrada al directorio padre
 	err = f.addEntryToDirectory(parentInodeNum, fileName, newInodeNum)
 	if err != nil {
 		return err
 	}
 
+	// Marcar inodo como usado
 	err = f.markInodeAsUsed(newInodeNum)
-	if err != nil {
-		return err
-	}
-
-	err = f.markBlockAsUsed(newBlockNum)
 	if err != nil {
 		return err
 	}
@@ -307,7 +325,7 @@ func (f *EXT2FileManager) createNewFile(parentInodeNum int32, fileName string, c
 	return nil
 }
 
-func (f *EXT2FileManager) writeFileBlock(blockNumber int32, content string) error {
+func (f *EXT2FileManager) writeFileBlock(blockNumber int32, content []byte) error {
 	file, err := os.OpenFile(f.manager.diskPath, os.O_RDWR, 0644)
 	if err != nil {
 		return err
@@ -321,7 +339,7 @@ func (f *EXT2FileManager) writeFileBlock(blockNumber int32, content string) erro
 	}
 
 	fileBlock := Models.BloqueArchivos{}
-	fileBlock.SetContent([]byte(content))
+	fileBlock.SetContent(content)
 
 	buffer := new(bytes.Buffer)
 	err = binary.Write(buffer, binary.LittleEndian, &fileBlock)
@@ -531,6 +549,49 @@ func (f *EXT2FileManager) addEntryToDirectory(dirInodeNum int32, filename string
 		}
 	}
 
+	// Si no hay espacio en bloques existentes, crear un nuevo bloque
+	for i := 0; i < 12; i++ {
+		if dirInodo.I_block[i] == Models.FREE_BLOCK {
+			// Encontrar bloque libre
+			newBlockNum, err := f.findFreeBlock()
+			if err != nil {
+				return err
+			}
+
+			// Marcar bloque como usado en bitmap
+			bitmap, err := f.readBlockBitmap()
+			if err != nil {
+				return err
+			}
+			Models.SetBitmapBit(bitmap, int(newBlockNum))
+			err = f.writeBlockBitmap(bitmap)
+			if err != nil {
+				return err
+			}
+
+			dirInodo.I_block[i] = int32(newBlockNum)
+
+			// Crear bloque de directorio vacío
+			newDirBlock := &Models.BloqueCarpeta{}
+			for j := 0; j < len(newDirBlock.B_content); j++ {
+				newDirBlock.B_content[j].B_inodo = Models.FREE_INODE
+			}
+
+			// Agregar la nueva entrada en la primera posición
+			newDirBlock.B_content[0].B_inodo = int32(fileInodeNum)
+			copy(newDirBlock.B_content[0].B_name[:], filename)
+
+			// Escribir el nuevo bloque
+			err = f.writeDirectoryBlock(int32(newBlockNum), newDirBlock)
+			if err != nil {
+				return err
+			}
+
+			// Actualizar el inodo del directorio padre
+			return f.writeInode(dirInodeNum, dirInodo)
+		}
+	}
+
 	return errors.New("no hay espacio en el directorio")
 }
 
@@ -555,6 +616,72 @@ func (f *EXT2FileManager) writeDirectoryBlock(blockNumber int32, dirBlock *Model
 
 	_, err = file.Write(buffer.Bytes())
 	return err
+}
+
+// writeMultipleBlocks escribe contenido usando múltiples bloques de 64 bytes
+func (f *EXT2FileManager) writeMultipleBlocks(inodo *Models.Inodo, content []byte) error {
+	totalBytes := len(content)
+	blocksNeeded := (totalBytes + Models.BLOQUE_SIZE - 1) / Models.BLOQUE_SIZE
+
+	// Limitar a 12 bloques directos por ahora
+	if blocksNeeded > 12 {
+		blocksNeeded = 12
+		totalBytes = 12 * Models.BLOQUE_SIZE
+		content = content[:totalBytes]
+	}
+
+	// Asignar y escribir bloques
+	for i := 0; i < blocksNeeded; i++ {
+		// Buscar bloque libre
+		blockNum, err := f.findFreeBlock()
+		if err != nil {
+			return err
+		}
+
+		// Calcular qué porción del contenido va en este bloque
+		start := i * Models.BLOQUE_SIZE
+		end := start + Models.BLOQUE_SIZE
+		if end > len(content) {
+			end = len(content)
+		}
+
+		// Escribir esta porción al bloque
+		blockContent := content[start:end]
+		err = f.writeFileBlock(blockNum, blockContent)
+		if err != nil {
+			return err
+		}
+
+		// Asignar puntero en el inodo
+		inodo.I_block[i] = blockNum
+
+		// Marcar bloque como usado
+		err = f.markBlockAsUsed(blockNum)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// freeInodeBlocks libera todos los bloques asignados a un inodo
+func (f *EXT2FileManager) freeInodeBlocks(inodo *Models.Inodo) error {
+	for i := 0; i < 12; i++ {
+		if inodo.I_block[i] != Models.FREE_BLOCK {
+			err := f.markBlockAsFree(inodo.I_block[i])
+			if err != nil {
+				return err
+			}
+			inodo.I_block[i] = Models.FREE_BLOCK
+		}
+	}
+	return nil
+}
+
+// markBlockAsFree marca un bloque como libre en el bitmap
+func (f *EXT2FileManager) markBlockAsFree(blockNumber int32) error {
+	return f.updateBlockBitmap(blockNumber, false)
 }
 
 // splitPath separa una ruta en directorio padre y nombre de archivo
